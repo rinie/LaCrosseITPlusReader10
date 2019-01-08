@@ -2,6 +2,7 @@ LaCrosse IT+ reader
 taken from http://sourceforge.net/p/fhem/code/HEAD/tree/trunk/fhem/contrib/arduino/36_LaCrosse-LaCrosseITPlusReader.zip?format=raw
 
 Discovered 
+https://forum.fhem.de/index.php/topic,93280.msg859226.html#msg859226
 LaCrosseITPlusReader10 10.1sJo that supports W136/WH24 and WH25!
 So port SX1276/ESP32 modification to this.
 

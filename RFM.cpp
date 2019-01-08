@@ -1,7 +1,15 @@
 #include "RFM.h"
+#ifdef ESP32
+#include <SPI.h>
+#define m_miso MISO
+#define m_mosi MOSI
+#define m_sck SCK
+#define USE_SPI8_H
+#define USE_SPI16_H
+#endif
 
 void RFM::Receive() {
-  if (IsRF69) {
+  if (IsRF69 || IsSX127x) {
     if (ReadReg(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY) {
       for (int i = 0; i < PAYLOADSIZE; i++) {
         byte bt = GetByteFromFifo();
@@ -11,6 +19,7 @@ void RFM::Receive() {
     }
   }
   else {
+#ifndef ESP32
     bool hasData = false;
     digitalWrite(m_ss, LOW);
     asm("nop");
@@ -28,6 +37,7 @@ void RFM::Receive() {
     if ((m_payloadPointer > 0 && millis() > m_lastReceiveTime + 50) || m_payloadPointer >= 32) {
       m_payloadReady = true;
     }
+#endif
   }
 }
 
@@ -43,10 +53,10 @@ void RFM::GetPayload(byte *data) {
 void RFM::SetDataRate(unsigned long dataRate) {
   m_dataRate = dataRate;
 
-  if (IsRF69) {
+  if (IsRF69 || IsSX127x) {
     word r = ((32000000UL + (m_dataRate / 2)) / m_dataRate);
-    WriteReg(0x03, r >> 8);
-    WriteReg(0x04, r & 0xFF);
+    WriteReg(REG_BITRATEMSB, r >> 8);
+    WriteReg(REG_BITRATELSB, r & 0xFF);
   }
   else {
     byte bt = (byte)(round(344828.0 / m_dataRate)) - 1;
@@ -57,11 +67,11 @@ void RFM::SetDataRate(unsigned long dataRate) {
 void RFM::SetFrequency(unsigned long kHz) {
   m_frequency = kHz;
 
-  if (IsRF69) {
+  if (IsRF69 || IsSX127x) {
     unsigned long f = (((kHz * 1000) << 2) / (32000000L >> 11)) << 6;
-    WriteReg(0x07, f >> 16);
-    WriteReg(0x08, f >> 8);
-    WriteReg(0x09, f);
+    WriteReg(REG_FRFMSB, f >> 16);
+    WriteReg(REG_FRFMID, f >> 8);
+    WriteReg(REG_FRFLSB, f);
   }
   else {
     RFM::spi16(40960 + (m_frequency - 860000) / 5);
@@ -71,8 +81,8 @@ void RFM::SetFrequency(unsigned long kHz) {
 
 void RFM::EnableReceiver(bool enable) {
   if (enable) {
-    if (IsRF69) {
-      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & 0xE3) | RF_OPMODE_RECEIVER);
+    if (IsRF69 || IsSX127x) {
+      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & RF_OPMODE_MASK) | RF_OPMODE_RECEIVER);
     }
     else {
       spi16(0x82C8);
@@ -81,8 +91,8 @@ void RFM::EnableReceiver(bool enable) {
     }
   }
   else {
-    if (IsRF69) {
-      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & 0xE3) | RF_OPMODE_STANDBY);
+    if (IsRF69 || IsSX127x) {
+      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & RF_OPMODE_MASK) | RF_OPMODE_STANDBY);
     }
     else {
       spi16(0x8208);
@@ -93,16 +103,16 @@ void RFM::EnableReceiver(bool enable) {
 
 void RFM::EnableTransmitter(bool enable) {
   if (enable) {
-    if (IsRF69) {
-      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & 0xE3) | RF_OPMODE_TRANSMITTER);
+    if (IsRF69 || IsSX127x) {
+      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & RF_OPMODE_MASK) | RF_OPMODE_TRANSMITTER);
     }
     else {
       spi16(0x8238);
     }
   }
   else {
-    if (IsRF69) {
-      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & 0xE3) | RF_OPMODE_STANDBY);
+    if (IsRF69 || IsSX127x) {
+      WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & RF_OPMODE_MASK) | RF_OPMODE_STANDBY);
     }
     else {
       spi16(0x8208);
@@ -111,7 +121,7 @@ void RFM::EnableTransmitter(bool enable) {
 }
 
 byte RFM::GetByteFromFifo() {
-  return IsRF69 ? ReadReg(0x00) : (byte)spi16(0xB000);
+  return IsRF69 || IsSX127x ? ReadReg(0x00) : (byte)spi16(0xB000);
 }
 
 bool RFM::PayloadIsReady() {
@@ -120,7 +130,7 @@ bool RFM::PayloadIsReady() {
 
 
 bool RFM::ClearFifo() {
-  if (IsRF69) {
+  if (IsRF69 || IsSX127x) {
     WriteReg(REG_IRQFLAGS2, 16);
   }
   else {
@@ -132,8 +142,8 @@ bool RFM::ClearFifo() {
 }
 
 void RFM::PowerDown() {
-  if (IsRF69) {
-    WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & 0xE3) | RF_OPMODE_SLEEP);
+  if (IsRF69 || IsSX127x) {
+    WriteReg(REG_OPMODE, (ReadReg(REG_OPMODE) & RF_OPMODE_MASK) | RF_OPMODE_SLEEP);
   }
   else {
     spi16(0x8201);
@@ -148,8 +158,35 @@ void RFM::InitializeLaCrosse() {
 
   digitalWrite(m_ss, HIGH);
   EnableReceiver(false);
-
+#ifdef USE_SX127x
+  if (IsSX127x) {
+#ifdef __SX1276_REGS_FSK_H__
+    /* 0x01 */ WriteReg(REG_OPMODE, RF_OPMODE_LONGRANGEMODE_OFF | RF_OPMODE_MODULATIONTYPE_FSK | RF_OPMODE_MODULATIONSHAPING_00 | RF_OPMODE_STANDBY);
+    ///* 0x02 */ WriteReg(REG_DATAMODUL, RF_DATAMODUL_DATAMODE_PACKET | RF_DATAMODUL_MODULATIONTYPE_FSK | RF_DATAMODUL_MODULATIONSHAPING_00);
+    /* 0x04 */ WriteReg(REG_FDEVMSB, RF_FDEVMSB_90000_HZ);
+    /* 0x05 */ WriteReg(REG_FDEVLSB, RF_FDEVLSB_90000_HZ);
+    ///* 0x09 */ WriteReg(REG_PACONFIG, RF_PACONFIG_PASELECT_RFO | RF_PACONFIG_OUTPUTPOWER_MASK);
+    /* 0x13 */ WriteReg(REG_OCP, RF_OCP_OFF);
+    /* 0x12 */ WriteReg(REG_RXBW, RF_RXBW_MANT_16 | RF_RXBW_EXP_2);
+    /* 0x3F */ WriteReg(REG_IRQFLAGS2, RF_IRQFLAGS2_FIFOOVERRUN);
+    /* 0x29 */ WriteReg(REG_RSSITHRESH, 220);
+    /* 0x27 */ WriteReg(REG_SYNCCONFIG, RF_SYNCCONFIG_AUTORESTARTRXMODE_WAITPLL_ON | RF_SYNCCONFIG_SYNC_ON | RF_SYNCCONFIG_SYNCSIZE_2);
+    /* 0x28 */ WriteReg(REG_SYNCVALUE1, 0x2D);
+    /* 0x29 */ WriteReg(REG_SYNCVALUE2, 0xD4);
+    /* 0x30 */ WriteReg(REG_PACKETCONFIG1, RF_PACKETCONFIG1_CRCAUTOCLEAR_OFF);
+    /* 0x31 */ WriteReg(REG_PACKETCONFIG2, RF_PACKETCONFIG2_DATAMODE_PACKET);
+    /* 0x38 */ WriteReg(REG_PAYLOADLENGTH, PAYLOADSIZE);
+    /* 0x35 */ WriteReg(REG_FIFOTHRESH, RF_FIFOTHRESH_TXSTARTCONDITION_FIFONOTEMPTY | RF_FIFOTHRESH_FIFOTHRESHOLD_THRESHOLD);
+   // /* 0x3D */ WriteReg(REG_PACKETCONFIG2, RF_PACKET2_RXRESTARTDELAY_2BITS | RF_PACKET2_AUTORXRESTART_ON | RF_PACKET2_AES_OFF);
+    ///* 0x6F */ WriteReg(REG_TESTDAGC, RF_DAGC_IMPROVED_LOWBETA0);
+#else
+	    Serial.print("Recompile for SX127x");
+#endif
+  }
+  else
+#endif
   if (IsRF69) {
+#ifdef _RFM69_h
     /* 0x01 */ WriteReg(REG_OPMODE, RF_OPMODE_SEQUENCER_ON | RF_OPMODE_LISTEN_OFF | RF_OPMODE_STANDBY);
     /* 0x02 */ WriteReg(REG_DATAMODUL, RF_DATAMODUL_DATAMODE_PACKET | RF_DATAMODUL_MODULATIONTYPE_FSK | RF_DATAMODUL_MODULATIONSHAPING_00);
     /* 0x05 */ WriteReg(REG_FDEVMSB, RF_FDEVMSB_90000);
@@ -167,20 +204,23 @@ void RFM::InitializeLaCrosse() {
     /* 0x3C */ WriteReg(REG_FIFOTHRESH, RF_FIFOTHRESH_TXSTART_FIFONOTEMPTY | RF_FIFOTHRESH_VALUE);
     /* 0x3D */ WriteReg(REG_PACKETCONFIG2, RF_PACKET2_RXRESTARTDELAY_2BITS | RF_PACKET2_AUTORXRESTART_ON | RF_PACKET2_AES_OFF);
     /* 0x6F */ WriteReg(REG_TESTDAGC, RF_DAGC_IMPROVED_LOWBETA0);
+#else
+	    Serial.print("Recompile for RFM69");
+#endif
   }
   else {
     spi16(0x8208);              // RX/TX off
     spi16(0x80E8);              // 80e8 CONFIGURATION EL,EF,868 band,12.5pF  (iT+ 915  80f8)
     spi16(0xC26a);              // DATA FILTER
-    spi16(0xCA12);              // FIFO AND RESET  8,SYNC,!ff,DR 
-    spi16(0xCEd4);              // SYNCHRON PATTERN  0x2dd4 
+    spi16(0xCA12);              // FIFO AND RESET  8,SYNC,!ff,DR
+    spi16(0xCEd4);              // SYNCHRON PATTERN  0x2dd4
     spi16(0xC481);              // AFC during VDI HIGH
-    spi16(0x94a0);              // RECEIVER CONTROL VDI Medium 134khz LNA max DRRSI 103 dbm  
-    spi16(0xCC77);              // 
-    spi16(0x9850);              // Deviation 90 kHz 
-    spi16(0xE000);              // 
-    spi16(0xC800);              // 
-    spi16(0xC040);              // 1.66MHz,2.2V 
+    spi16(0x94a0);              // RECEIVER CONTROL VDI Medium 134khz LNA max DRRSI 103 dbm
+    spi16(0xCC77);              //
+    spi16(0x9850);              // Deviation 90 kHz
+    spi16(0xE000);              //
+    spi16(0xC800);              //
+    spi16(0xC040);              // 1.66MHz,2.2V
   }
 
   SetFrequency(m_frequency);
@@ -189,9 +229,10 @@ void RFM::InitializeLaCrosse() {
   ClearFifo();
 }
 
-
+#ifndef USE_SPI8_H
 #define clrb(pin) (*portOutputRegister(digitalPinToPort(pin)) &= ~digitalPinToBitMask(pin))
 #define setb(pin) (*portOutputRegister(digitalPinToPort(pin)) |= digitalPinToBitMask(pin))
+
 byte RFM::spi8(byte value) {
   volatile byte *misoPort = portInputRegister(digitalPinToPort(m_miso));
   byte misoBit = digitalPinToBitMask(m_miso);
@@ -213,7 +254,19 @@ byte RFM::spi8(byte value) {
 
   return value;
 }
+#else
+byte RFM::spi8(byte value) {
+  byte res;
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  res = SPI.transfer(value);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+  return res;
+}
+#endif
 
+#ifndef USE_SPI16_H
 unsigned short RFM::spi16(unsigned short value) {
   volatile byte *misoPort = portInputRegister(digitalPinToPort(m_miso));
   byte misoBit = digitalPinToBitMask(m_miso);
@@ -238,22 +291,53 @@ unsigned short RFM::spi16(unsigned short value) {
   setb(m_ss);
   return value;
 }
+#else
+unsigned short RFM::spi16(unsigned short value) {
+  unsigned short res;
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  res = SPI.transfer16(value);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+  return res;
+}
+#endif
 
+#ifndef USE_SPI8_H
 byte RFM::ReadReg(byte addr) {
   digitalWrite(m_ss, LOW);
   spi8(addr & 0x7F);
   byte regval = spi8(0);
   digitalWrite(m_ss, HIGH);
   return regval;
-
 }
+#else
+byte RFM::ReadReg(byte addr) {
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  SPI.transfer(addr & 0x7F);
+  uint8_t regval = SPI.transfer(0);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+  return regval;
+}
+#endif
 
 void RFM::WriteReg(byte addr, byte value) {
+#ifndef USE_SPI8_H
   digitalWrite(m_ss, LOW);
   spi8(addr | 0x80);
   spi8(value);
 
   digitalWrite(m_ss, HIGH);
+#else
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  SPI.transfer(addr | 0x80);
+  SPI.transfer(value);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+#endif
 }
 
 RFM::RadioType RFM::GetRadioType() {
@@ -268,6 +352,9 @@ String RFM::GetRadioName() {
     case RFM::RFM69CW:
       return String("RFM69CW");
       break;
+    case RFM::SX127x:
+      return String("SX127x");
+      break;
     default:
       return String("None");
   }
@@ -280,6 +367,18 @@ bool RFM::IsConnected() {
 void RFM::Begin(bool isPrimary) {
   // No radio found until now
   m_radioType = RFM::None;
+#ifdef USE_SX127x
+	if (!isPrimary) {
+	  return;
+  }
+  // check version
+  uint8_t version = ReadReg(REG_VERSION);
+  if (version = 0x12) {
+	m_radioType = RFM::SX127x;
+	WriteReg(REG_PAYLOADLENGTH, 0x40);
+    return;
+  }
+#endif
 
   // Is there a RFM69 ?
   WriteReg(REG_PAYLOADLENGTH, 0xA);
@@ -319,10 +418,16 @@ void RFM::Begin(bool isPrimary) {
   }
 }
 
+#ifndef ESP32
 RFM::RFM(byte mosi, byte miso, byte sck, byte ss) {
   m_mosi = mosi;
   m_miso = miso;
   m_sck = sck;
+#else
+RFM::RFM(byte ss, byte irqPin, byte reset) {
+  m_irqPin = irqPin;
+  m_reset = reset;
+#endif
   m_ss = ss;
 
   m_debug = false;
@@ -333,13 +438,31 @@ RFM::RFM(byte mosi, byte miso, byte sck, byte ss) {
   m_payloadReady = false;
 
 
+#ifndef ESP32
   pinMode(m_mosi, OUTPUT);
   pinMode(m_miso, INPUT);
   pinMode(m_sck, OUTPUT);
   pinMode(m_ss, OUTPUT);
 
   digitalWrite(m_ss, HIGH);
+#else
+	  pinMode(m_irqPin, INPUT);
+	  pinMode(m_ss, OUTPUT);
+	  delay(10);
+	  digitalWrite(m_ss, HIGH);
+#ifdef USE_SX127x
+	  if (m_reset != -1) {
+		pinMode(m_reset, OUTPUT);
 
+		// perform reset
+		digitalWrite(m_reset, LOW);
+		delay(10);
+		digitalWrite(m_reset, HIGH);
+		delay(10);
+	  }
+#endif
+	  SPI.begin();
+#endif
 }
 
 void RFM::SetDebugMode(boolean mode) {
@@ -359,9 +482,17 @@ void RFM::SendByte(byte data) {
 
 
 void RFM::SendArray(byte *data, byte length) {
-  if (IsRF69) {
-    WriteReg(REG_PACKETCONFIG2, (ReadReg(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART); // avoid RX deadlocks
-
+    if (IsRF69 || IsSX127x) {
+	  if (IsRF69) {
+	  #ifdef _RFM69_h
+	  	  WriteReg(REG_PACKETCONFIG2, (ReadReg(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART); // avoid RX deadlocks
+	  #else
+		  Serial.print("Recompile for RFM69");
+	  #endif
+	  }
+	  else {
+	  	  WriteReg(REG_RXCONFIG, (ReadReg(REG_PACKETCONFIG2)) | RF_RXCONFIG_RESTARTRXWITHPLLLOCK);
+	  }
     EnableReceiver(false);
     ClearFifo();
 

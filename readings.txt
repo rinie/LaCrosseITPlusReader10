@@ -1,0 +1,20 @@
+OK 9 33 1 4 175 106
+OK 9 33 1 4 174 106
+OK 9 33 1 4 174 106
+OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=8.40,WindDirection=279.00,WindGust=12.32,UV=0.00,LowBatteryFlag=1,
+OK 9 33 1 4 175 106
+OK 9 33 1 4 175 106
+OK 9 33 1 4 175 106
+OK WS 136 3 4 123 51 0 0 5 70 0 0 0 0 0
+OK 9 33 1 4 174 106
+OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=10.36,WindDirection=297.00,WindGust=13.44,UV=0.00,LowBatteryFlag=1,
+OK 9 33 1 4 175 106
+OK 9 33 1 4 175 106
+OK 9 33 1 4 175 106
+OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=8.68,WindDirection=354.00,WindGust=11.20,UV=0.00,LowBatteryFlag=1,
+OK 9 33 1 4 175 106
+OK 9 33 1 4 174 106
+OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=7.28,WindDirection=285.00,WindGust=10.08,UV=0.00,LowBatteryFlag=1,
+OK 9 33 1 4 175 106
+
+Temp = 5.6 hum = 99
