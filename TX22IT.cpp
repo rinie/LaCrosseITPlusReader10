@@ -4,7 +4,7 @@
 TX22-IT  8842 kbps  868.3 MHz
 -----------------------------
 Message Format:
-SSSS.DDDD DDAE.LQQQ TTTT.VVVV VVVV.VVVV ... CCCC.CCCC 
+SSSS.DDDD DDAE.LQQQ TTTT.VVVV VVVV.VVVV ... CCCC.CCCC
 Data - organized in nibbles - are structured as follows (example with blanks added for clarity):
 a 5a 5 0 628 1 033 2 000 3 e00 4 000 bd
 
@@ -47,7 +47,7 @@ byte TX22IT::CalculateCRC(byte data[]) {
   byte val;
   byte DoInvert;
   byte result;
-  
+
   byte len = TX22IT::GetFrameLength(data) -1;
 
   for(i=0; i<8; i++) {
@@ -56,7 +56,7 @@ byte TX22IT::CalculateCRC(byte data[]) {
 
   for(j=0; j<len; j++) {
     val = data[j];
-    
+
     for(i=0; i<8; i++) {
       switch(i) {
         case 0: if((val & 0x80) != 0) { bits[i] = 1; } else { bits[i] = 0; } break;
@@ -68,14 +68,14 @@ byte TX22IT::CalculateCRC(byte data[]) {
         case 6: if((val & 0x2) != 0) { bits[i] = 1; } else { bits[i] = 0; } break;
         case 7: if((val & 0x1) != 0) { bits[i] = 1; } else { bits[i] = 0; } break;
       }
-  
+
       if(bits[i] == 1) {
         DoInvert = 1 ^ CRC[7];
       }
       else {
         DoInvert = 0 ^ CRC[7];
-      }  
-      
+      }
+
       CRC[7] = CRC[6];
       CRC[6] = CRC[5];
       CRC[5] = CRC[4] ^ DoInvert;
@@ -95,17 +95,17 @@ byte TX22IT::CalculateCRC(byte data[]) {
            (CRC[2] << 2) |
            (CRC[1] << 1) |
            (CRC[0]);
-              
+
   return result;
 }
 
-void TX22IT::DecodeFrame(byte *bytes, struct Frame *frame) {
+void TX22IT::DecodeFrame(byte *bytes, struct Frame *frame, bool fOnlyIfValid) {
   frame->IsValid = true;
   frame->Header = 0;
   frame->ID = 0;
   frame->NewBatteryFlag = false;
   frame->LowBatteryFlag = false;
-  frame->ErrorFlag = false; 
+  frame->ErrorFlag = false;
 
   frame->HasTemperature = false;
   frame->HasHumidity = false;
@@ -114,7 +114,7 @@ void TX22IT::DecodeFrame(byte *bytes, struct Frame *frame) {
   frame->HasWindDirection = false;
   frame->HasWindGust = false;
   frame->HasPressure = false;
-  
+
   frame->Temperature = 0;
   frame->Humidity = 0;
   frame->Rain = 0;
@@ -123,13 +123,16 @@ void TX22IT::DecodeFrame(byte *bytes, struct Frame *frame) {
   frame->WindGust = 0;
   frame->CRC = 0;
 
-  frame->CRC = bytes[GetFrameLength(bytes) -1];
-  if (frame->CRC != CalculateCRC(bytes)) {
-    frame->IsValid = false;
-  }
-
   frame->Header = (bytes[0] & 0xF0) >> 4;
   if (frame->Header != 0xA) {
+    frame->IsValid = false;
+    if (fOnlyIfValid) {
+    	return;
+	}
+  }
+
+  frame->CRC = bytes[GetFrameLength(bytes) -1];
+  if (frame->CRC != CalculateCRC(bytes)) {
     frame->IsValid = false;
   }
 
@@ -158,7 +161,7 @@ void TX22IT::DecodeFrame(byte *bytes, struct Frame *frame) {
             frame->IsValid = false;
           }
           break;
-        
+
         case 1:
           frame->HasHumidity= true;
           frame->Humidity = DecodeValue(q1, q2, q3);
@@ -187,7 +190,7 @@ void TX22IT::DecodeFrame(byte *bytes, struct Frame *frame) {
       }
 
     }
-    
+
   }
 }
 
@@ -196,7 +199,11 @@ byte TX22IT::GetFrameLength(byte data[]) {
   return 3 + 2 * (data[1] & 0x7);
 }
 
+bool TX22IT::IsValidDataRate(unsigned long dataRate) {
+  return dataRate == 8842ul;
+}
 
+#ifndef RESTORE_ANALYZE
 String TX22IT::AnalyzeFrame(byte *data) {
   struct Frame frame;
   DecodeFrame(data, &frame);
@@ -227,7 +234,7 @@ bool TX22IT::TryHandleData(byte *data) {
   if (fhemString.length() > 0) {
     Serial.println(fhemString);
   }
- 
+
   return fhemString.length() > 0;
 }
 
@@ -236,7 +243,34 @@ bool TX22IT::TryHandleData(byte *data) {
 void TX22IT::EncodeFrame(struct Frame *frame, byte bytes[4]) {
 
 }
+#else
+byte TX22IT::TryHandleData(byte *data, ulong dataRate, byte displayFormat)
+{
+  struct Frame frame;
+  bool fOnlyIfValid = true;
+  String frameDataString;
 
-bool TX22IT::IsValidDataRate(unsigned long dataRate) {
-  return dataRate == 8842ul;
+  if (!IsValidDataRate(dataRate)) {
+	  return 0;
+  }
+
+  DecodeFrame(data, &frame, fOnlyIfValid);
+  byte frameLength = TX22IT::GetFrameLength(data);
+
+  if (frame.IsValid || !fOnlyIfValid) {
+	  if (displayFormat == 1) {
+		  frameDataString = WSBase::AnalyzeFrame(data, &frame,frameLength, "TX22IT");
+	  }
+	  else if (frame.IsValid) {
+		  if (displayFormat == 3) {
+		    frameDataString = BuildKVDataString(&frame, WSBase::TX22IT);
+		  }
+		  else { // default
+		  	frameDataString = BuildFhemDataString(&frame, 1);
+	     }
+	  }
+      Serial.println(frameDataString);
+  }
+  return frame.IsValid ? frameLength : 0;
 }
+#endif

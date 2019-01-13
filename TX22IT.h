@@ -10,15 +10,19 @@ public:
   static byte GetFrameLength(byte data[]);
   static byte CalculateCRC(byte data[]);
   static void EncodeFrame(struct WSBase::Frame *frame, byte bytes[4]);
-  static void DecodeFrame(byte *bytes, struct WSBase::Frame *frame);
+  static void DecodeFrame(byte *bytes, struct WSBase::Frame *frame, bool fOnlyIfValid = true);
   static String AnalyzeFrame(byte *data);
+  static bool IsValidDataRate(unsigned long dataRate);
+#ifndef RESTORE_ANALYZE
   static bool TryHandleData(byte *data);
   static String GetFhemDataString(byte *data);
-  static bool IsValidDataRate(unsigned long dataRate);
+#else
+	static byte TryHandleData(byte *data, ulong dataRate, byte displayFormat = 0);
+#endif
 
 
 protected:
-  
+
 
 };
 

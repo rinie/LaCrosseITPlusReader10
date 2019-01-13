@@ -11,7 +11,7 @@ public:
     byte  Header;
     byte  ID;
     bool  NewBatteryFlag;
-    bool  WeakBatteryFlag;    
+    bool  WeakBatteryFlag;
     float Temperature;
     byte  Humidity;
     byte  CRC;
@@ -23,11 +23,16 @@ public:
   static bool USE_OLD_ID_CALCULATION;
   static byte CalculateCRC(byte data[]);
   static void EncodeFrame(struct TX38IT::Frame *frame, byte bytes[4]);
-  static void DecodeFrame(byte *bytes, struct TX38IT::Frame *frame);
+  static void DecodeFrame(byte *bytes, struct TX38IT::Frame *frame, bool fOnlyIfValid = true);
+  static bool IsValidDataRate(unsigned long dataRate);
+#ifndef RESTORE_ANALYZE
   static void AnalyzeFrame(byte *data);
   static bool TryHandleData(byte *data);
   static String GetFhemDataString(byte *data);
-  static bool IsValidDataRate(unsigned long dataRate);
+#else
+   static void AnalyzeFrame(byte *data,  struct TX38IT::Frame *frame);
+	static byte TryHandleData(byte *data, ulong dataRate, byte displayFormat = 0);
+#endif
 
 protected:
   static String BuildFhemDataString(struct TX38IT::Frame *frame);

@@ -4,18 +4,18 @@
 * Technoline TX38-IT 17.241 868.3 MHz
 * Message Format:
 *
-* .- [0] -. .- [1] -. .- [2] -. .- [3] -. 
-* |       | |       | |       | |       | 
-* SSDD.DDDD NWTT.TTTT TTTT.CCCC CCCC.____ 
-* |||     | |||          | |       | 
+* .- [0] -. .- [1] -. .- [2] -. .- [3] -.
+* |       | |       | |       | |       |
+* SSDD.DDDD NWTT.TTTT TTTT.CCCC CCCC.____
+* |||     | |||          | |       |
 * |||     | |||          |  `---------------- CRC
 * |||     | |||          |
 * |||     | ||`------------ Temperature = (T * 0.1) - 40.0
-* |||     | ||  
+* |||     | ||
 * |||     | |`-------- weak battery
 * |||     | |
 * |||     | `-------  new battery
-* |||     | 
+* |||     |
 * ||`---------- ID
 * `---- START = 3
 *
@@ -25,19 +25,19 @@
 byte TX38IT::CalculateCRC(byte data[]) {
   int i, j;
   byte res = 0;
-  
+
   int len = 3;
   int bits = 20;
-  
-  for (j = 0; j < len; j++) 
+
+  for (j = 0; j < len; j++)
   {
     uint8_t val = data[j];
-    for (i = 0; i < 8; i++) 
+    for (i = 0; i < 8; i++)
     {
       int bitNum = j * 8 + i;
-      
+
       if(bitNum < bits)
-      {          
+      {
         uint8_t tmp = (uint8_t)((res ^ val) & 0x80);
         res <<= 1;
         if (0 != tmp) {
@@ -75,31 +75,35 @@ void TX38IT::EncodeFrame(struct Frame *frame, byte bytes[4]) {
 }
 
 
-void TX38IT::DecodeFrame(byte *bytes, struct Frame *frame) {
+void TX38IT::DecodeFrame(byte *bytes, struct Frame *frame, bool fOnlyIfValid) {
   frame->IsValid = true;
+
+  frame->Header = (bytes[0] & 0xC0) >> 6;
+  if (frame->Header != 3) {
+    frame->IsValid = false;
+    if (fOnlyIfValid) {
+    	return;
+	}
+  }
 
   frame->CRC = ((bytes[2] & 0xf) << 4) | (bytes[3] & 0xf0) >> 4;
   if (frame->CRC != CalculateCRC(bytes)) {
     frame->IsValid = false;
   }
 
-  // * SSDD.DDDD NWTT.TTTT TTTT.CCCC CCCC.____ 
+  // * SSDD.DDDD NWTT.TTTT TTTT.CCCC CCCC.____
   frame->ID = (bytes[0] & 0x3F);
-  
-  frame->Header = (bytes[0] & 0xC0) >> 6;
-  if (frame->Header != 3) {
-    frame->IsValid = false;
-  }
+
 
   frame->NewBatteryFlag  = (bytes[1] & 0x80) >> 7;
   frame->WeakBatteryFlag = (bytes[1] & 0x40) >> 6;
 
   long tempVal;
-  
+
   tempVal = ((bytes[1] & 0x3F) << 4) | (bytes[2] & 0xf0) >> 4;
-  
+
   frame->Temperature = (tempVal * 0.1) - 40.0;
-  
+
   frame->miscBits = (bytes[3] & 0x0f);
 
   frame->Humidity = 106;
@@ -112,7 +116,7 @@ String TX38IT::BuildFhemDataString(struct Frame *frame) {
   //
   // OK 9 56 1   4   156 37     ID = 56  T: 18.0  H: 37  no NewBatt
   // OK 9 49 1   4   182 54     ID = 49  T: 20.6  H: 54  no NewBatt
-  // OK 9 55 129 4 192 56       ID = 55  T: 21.6  H: 56  WITH NewBatt 
+  // OK 9 55 129 4 192 56       ID = 55  T: 21.6  H: 56  WITH NewBatt
   // OK 9 ID XXX XXX XXX XXX
   // |  | |  |   |   |   |
   // |  | |  |   |   |   --- Humidity incl. WeakBatteryFlag
@@ -166,10 +170,14 @@ String TX38IT::BuildFhemDataString(struct Frame *frame) {
   return pBuf;
 }
 
+#ifndef RESTORE_ANALYZE
 void TX38IT::AnalyzeFrame(byte *data) {
-  struct Frame frame;
-  DecodeFrame(data, &frame);
-
+  struct Frame frame2;
+  DecodeFrame(data, &frame2);
+  struct Frame *frame = &frame2;
+#else
+void TX38IT::AnalyzeFrame(byte *data,  struct TX38IT::Frame *frame) {
+#endif
   byte filter[5];
   filter[0] = 0;
   filter[1] = 0;
@@ -179,7 +187,7 @@ void TX38IT::AnalyzeFrame(byte *data) {
 
   bool hideIt = false;
   for (int f = 0; f < 5; f++) {
-    if (frame.ID == filter[f]) {
+    if (frame->ID == filter[f]) {
       hideIt = true;
       break;
     }
@@ -203,7 +211,7 @@ void TX38IT::AnalyzeFrame(byte *data) {
     Serial.print("]");
 
     // Check CRC
-    if (!frame.IsValid) {
+    if (!frame->IsValid) {
       Serial.print(" CRC:WRONG");
     }
     else {
@@ -211,27 +219,27 @@ void TX38IT::AnalyzeFrame(byte *data) {
 
       // Start
       Serial.print(" S:");
-      Serial.print(frame.Header, DEC);
+      Serial.print(frame->Header, DEC);
 
       // Sensor ID
       Serial.print(" ID:");
-      Serial.print(frame.ID, DEC);
+      Serial.print(frame->ID, DEC);
 
       // New battery flag
       Serial.print(" NewBatt:");
-      Serial.print(frame.NewBatteryFlag, DEC);
+      Serial.print(frame->NewBatteryFlag, DEC);
 
       // Weak battery flag
       Serial.print(" WeakBatt:");
-      Serial.print(frame.WeakBatteryFlag, DEC);
+      Serial.print(frame->WeakBatteryFlag, DEC);
 
       // Temperature
       Serial.print(" Temp:");
-      Serial.print(frame.Temperature);
+      Serial.print(frame->Temperature);
 
       // CRC
       Serial.print(" CRC:");
-      Serial.print(frame.CRC, DEC);
+      Serial.print(frame->CRC, DEC);
     }
 
     Serial.println();
@@ -239,6 +247,11 @@ void TX38IT::AnalyzeFrame(byte *data) {
 
 }
 
+bool TX38IT::IsValidDataRate(unsigned long dataRate) {
+  return dataRate == 17241ul;
+}
+
+#ifndef RESTORE_ANALYZE
 String TX38IT::GetFhemDataString(byte *data) {
   String fhemString = "";
 
@@ -264,6 +277,34 @@ bool TX38IT::TryHandleData(byte *data) {
   return fhemString.length() > 0;
 }
 
-bool TX38IT::IsValidDataRate(unsigned long dataRate) {
-  return dataRate == 17241ul;
+#else
+byte TX38IT::TryHandleData(byte *data, ulong dataRate, byte displayFormat)
+{
+  struct Frame frame;
+  bool fOnlyIfValid = true;
+  String frameDataString;
+
+  if (!IsValidDataRate(dataRate)) {
+	  return 0;
+  }
+
+  DecodeFrame(data, &frame, fOnlyIfValid);
+
+  if (frame.IsValid || !fOnlyIfValid) {
+	  if (displayFormat == 1) {
+		  AnalyzeFrame(data, &frame);
+	  }
+	  else if (frame.IsValid) {
+		  //if (displayFormat == 3) {
+		  //  frameDataString = BuildKVDataString(&frame, WSBase::WH1080);
+		  //}
+		  //else { // default
+		  	frameDataString = BuildFhemDataString(&frame);
+	     //}
+	  }
+      Serial.println(frameDataString);
+  }
+  return frame.IsValid ? TX38IT::FRAME_LENGTH : 0;
 }
+
+#endif

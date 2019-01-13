@@ -10,7 +10,8 @@
 
 void RFM::Receive() {
   if (IsRF69 || IsSX127x) {
-    if (ReadReg(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY) {
+	byte m_regirqflags2 = ReadReg(REG_IRQFLAGS2);
+    if (m_regirqflags2 & RF_IRQFLAGS2_PAYLOADREADY) {
       for (int i = 0; i < PAYLOADSIZE; i++) {
         byte bt = GetByteFromFifo();
         m_payload[i] = bt;
@@ -43,7 +44,9 @@ void RFM::Receive() {
 
 void RFM::GetPayload(byte *data) {
   m_payloadReady = false;
+#ifndef ESP32
   m_payloadPointer = 0;
+#endif
   for (int i = 0; i < PAYLOADSIZE; i++) {
     data[i] = m_payload[i];
   }
@@ -121,17 +124,17 @@ void RFM::EnableTransmitter(bool enable) {
 }
 
 byte RFM::GetByteFromFifo() {
-  return IsRF69 || IsSX127x ? ReadReg(0x00) : (byte)spi16(0xB000);
+	// REG_FIFO 0x0 for both
+  return IsRF69 || IsSX127x ? ReadReg(REG_FIFO) : (byte)spi16(0xB000);
 }
 
 bool RFM::PayloadIsReady() {
   return m_payloadReady;
 }
 
-
 bool RFM::ClearFifo() {
   if (IsRF69 || IsSX127x) {
-    WriteReg(REG_IRQFLAGS2, 16);
+    WriteReg(REG_IRQFLAGS2, RF_IRQFLAGS2_FIFOOVERRUN);
   }
   else {
     for (byte i = 0; i < PAYLOADSIZE; i++) {
@@ -177,8 +180,6 @@ void RFM::InitializeLaCrosse() {
     /* 0x31 */ WriteReg(REG_PACKETCONFIG2, RF_PACKETCONFIG2_DATAMODE_PACKET);
     /* 0x38 */ WriteReg(REG_PAYLOADLENGTH, PAYLOADSIZE);
     /* 0x35 */ WriteReg(REG_FIFOTHRESH, RF_FIFOTHRESH_TXSTARTCONDITION_FIFONOTEMPTY | RF_FIFOTHRESH_FIFOTHRESHOLD_THRESHOLD);
-   // /* 0x3D */ WriteReg(REG_PACKETCONFIG2, RF_PACKET2_RXRESTARTDELAY_2BITS | RF_PACKET2_AUTORXRESTART_ON | RF_PACKET2_AES_OFF);
-    ///* 0x6F */ WriteReg(REG_TESTDAGC, RF_DAGC_IMPROVED_LOWBETA0);
 #else
 	    Serial.print("Recompile for SX127x");
 #endif
@@ -433,8 +434,10 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
   m_debug = false;
   m_dataRate = 17241;
   m_frequency = 868300;
+#ifndef ESP32
   m_payloadPointer = 0;
   m_lastReceiveTime = 0;
+#endif
   m_payloadReady = false;
 
 

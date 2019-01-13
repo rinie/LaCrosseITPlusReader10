@@ -1,7 +1,7 @@
 #include "WH24.h"
 
 
-byte WH24::CalculateCRC(byte message[]) {          
+byte WH24::CalculateCRC(byte message[]) {
 
 unsigned nBytes = 15 ;
 uint8_t polynomial = 0x31;
@@ -60,7 +60,7 @@ unsigned byte, bit;
 #define MODEL_WH24 24 /* internal identifier for model WH24, family code is always 0x24 */
 #define MODEL_WH65B 65 /* internal identifier for model WH65B, family code is always 0x24 */
 
-void WH24::DecodeFrame(byte *bytes, struct Frame *frame) {
+void WH24::DecodeFrame(byte *bytes, struct Frame *frame, bool fOnlyIfValid) {
 
   uint8_t tempkorr = 0;
   frame->IsValid = true;
@@ -96,7 +96,7 @@ void WH24::DecodeFrame(byte *bytes, struct Frame *frame) {
     for (size_t n = 0; n < 16; ++n) {
         checksum += bytes[n];
     }
-    
+
  //   if (crc != bytes[15] || checksum != bytes[16]) {
     if (crc != bytes[15]) {
         frame->IsValid = false;
@@ -106,7 +106,7 @@ void WH24::DecodeFrame(byte *bytes, struct Frame *frame) {
   }
 
   if (frame->IsValid) {
-    
+
     frame->ID = (bytes[1]);
     // Temperature (�C)
     int temp = ((bytes[3] & 0x07) << 8) | bytes[4]; // 0x7ff if invalid
@@ -114,7 +114,7 @@ void WH24::DecodeFrame(byte *bytes, struct Frame *frame) {
     // Humidity (%rH)
     frame->Humidity = bytes[5];                     // 0xff if invalid
    // frame->Pressure = ((bytes[4] << 8) | bytes[5]) / 10.0;
-   
+
     // Wind speed (m/s)
     int wind_speed_raw  = bytes[6] | (bytes[3] & 0x10) << 4; // 0x1ff if invalid
      float wind_speed_factor, rain_cup_count;
@@ -129,19 +129,19 @@ void WH24::DecodeFrame(byte *bytes, struct Frame *frame) {
     //}
     // Wind speed is scaled by 8, wind speed = raw / 8 * 1.12 m/s (0.51 for WH65B)
     frame->WindSpeed = wind_speed_raw * 0.125 * wind_speed_factor;
-    
+
     // Wind gust (m/s)
      int gust_speed_raw  = bytes[7];             // 0xff if invalid
     // Wind gust is unscaled, multiply by wind speed factor 1.12 m/s
     frame->WindGust = gust_speed_raw * wind_speed_factor;
-    
-    //  Rain 
+
+    //  Rain
     int rainfall_raw    = bytes[8] << 8 | bytes[9]; // rain tip counter
     frame->Rain = rainfall_raw * rain_cup_count; // each tip is 0.3mm / 0.254mm
-    
+
     // Wind direction (degree  N=0, NNE=22.5, S=180, ... )
     frame->WindDirection = bytes[2] | (bytes[3] & 0x80) << 1; // range 0-359 deg, 0x1ff if invalid
-    
+
     int uv_raw          = bytes[10] << 8 | bytes[11];               // range 0-20000, 0xffff if invalid
     int light_raw       = bytes[12] << 16 | bytes[13] << 8 | bytes[14]; // 0xffffff if invalid
     float light_lux     = light_raw * 0.1; // range 0.0-300000.0lux
@@ -164,13 +164,13 @@ void WH24::DecodeFrame(byte *bytes, struct Frame *frame) {
     // >=5230     13
     int uvi_upper[] = {432, 851, 1210, 1570, 2017, 2450, 2761, 3100, 3512, 3918, 4277, 4650, 5029};
     int uv_index   = 0;
-    while (uv_index < 13 && uvi_upper[uv_index] < uv_raw) ++uv_index; 
+    while (uv_index < 13 && uvi_upper[uv_index] < uv_raw) ++uv_index;
     frame->UV =  uv_index;
 
   }
 }
 
-
+#ifndef RESTORE_ANALYZE
 String WH24::AnalyzeFrame(byte *data) {
   struct Frame frame;
   DecodeFrame(data, &frame);
@@ -206,3 +206,39 @@ bool WH24::TryHandleData(byte *data) {
 bool WH24::IsValidDataRate(unsigned long dataRate) {
   return dataRate == 17241ul;
 }
+#else
+bool WH24::IsValidDataRate(unsigned long dataRate) {
+  return dataRate == 17241ul;
+}
+
+byte WH24::TryHandleData(byte *data, ulong dataRate, byte displayFormat)
+{
+  struct Frame frame;
+  bool fOnlyIfValid = true;
+  String frameDataString;
+
+  if (!IsValidDataRate(dataRate)) {
+	  // frameLength = 0;
+	  return 0;
+  }
+
+  DecodeFrame(data, &frame);
+
+  if (frame.IsValid || !fOnlyIfValid) {
+	  if (displayFormat == 1) {
+		  frameDataString = WSBase::AnalyzeFrame(data, &frame, WH24::FRAME_LENGTH, "WH24");
+	  }
+	  else if (frame.IsValid) {
+		  if (displayFormat == 2) {
+		    frameDataString = BuildFhemDataString(&frame, WSBase::WH24);
+		  }
+		  else { // default
+		  	frameDataString = BuildKVDataString(&frame, WSBase::WH24);
+	     }
+	  }
+      Serial.println(frameDataString);
+  }
+  return frame.IsValid ? WH24::FRAME_LENGTH : 0;
+}
+
+#endif

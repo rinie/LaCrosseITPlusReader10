@@ -2,6 +2,7 @@
 #define _SENSORBASE_h
 
 #include "Arduino.h"
+#define RESTORE_ANALYZE
 
 class SensorBase {
 public:

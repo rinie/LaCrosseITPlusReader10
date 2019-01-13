@@ -26,7 +26,7 @@ public:
     bool  HasstrikesTotal;
     bool  HasstrikesDistance;
 
-    float Temperature;    // �C 
+    float Temperature;    // �C
     byte  Humidity;       // %rH
     float Rain;           // mm
     float WindDirection;  // Degree
@@ -37,10 +37,18 @@ public:
     int16_t strikesDistance ;
     uint16_t strikesTotal ;
   };
-
+  enum SensorType {
+	TX22IT = 1,
+	NodeSensor = 2,
+    WH1080 = 3,
+    LG = 4,
+    WH25 = 5,
+    W136 = 6,
+    WH24 = 7
+  };
 
 protected:
-  static String BuildKVDataString(struct Frame *frame, byte sensorType);
+  static String BuildKVDataString(struct Frame *frame, SensorType sensorType);
   static String BuildFhemDataString(struct Frame *frame, byte sensorType);
   static String AddWord(word value, bool hasValue);
   static String AddByte(byte value, bool hasValue);

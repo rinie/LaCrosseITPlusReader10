@@ -58,12 +58,19 @@ void LaCrosse::EncodeFrame(struct Frame *frame, byte bytes[5]) {
 
   // CRC
   bytes[4] = CalculateCRC(bytes);
-  
+
 }
 
 
-void LaCrosse::DecodeFrame(byte *bytes, struct Frame *frame) {
+void LaCrosse::DecodeFrame(byte *bytes, struct Frame *frame, bool fOnlyIfValid) {
   frame->IsValid = true;
+  frame->Header = (bytes[0] & 0xF0) >> 4;
+  if (frame->Header != 9) {
+    frame->IsValid = false;
+    if (fOnlyIfValid) {
+    	return;
+	}
+  }
 
   frame->CRC = bytes[4];
   if (frame->CRC != CalculateCRC(bytes)) {
@@ -84,10 +91,6 @@ void LaCrosse::DecodeFrame(byte *bytes, struct Frame *frame) {
   }
 
 
-  frame->Header = (bytes[0] & 0xF0) >> 4;
-  if (frame->Header != 9) {
-    frame->IsValid = false;
-  }
 
   frame->NewBatteryFlag = (bytes[1] & 0x20) >> 5;
 
@@ -116,7 +119,7 @@ String LaCrosse::BuildFhemDataString(struct Frame *frame) {
   //
   // OK 9 56 1   4   156 37     ID = 56  T: 18.0  H: 37  no NewBatt
   // OK 9 49 1   4   182 54     ID = 49  T: 20.6  H: 54  no NewBatt
-  // OK 9 55 129 4 192 56       ID = 55  T: 21.6  H: 56  WITH NewBatt 
+  // OK 9 55 129 4 192 56       ID = 55  T: 21.6  H: 56  WITH NewBatt
   // OK 9 ID XXX XXX XXX XXX
   // |  | |  |   |   |   |
   // |  | |  |   |   |   --- Humidity incl. WeakBatteryFlag
@@ -170,11 +173,16 @@ String LaCrosse::BuildFhemDataString(struct Frame *frame) {
   return pBuf;
 }
 
+#ifndef RESTORE_ANALYZE
 String LaCrosse::AnalyzeFrame(byte *data) {
   String result;
-  struct Frame frame;
-  DecodeFrame(data, &frame);
-
+  struct Frame frame2;
+  DecodeFrame(data, &frame2);
+ struct Frame *frame = &frame2;
+#else
+String LaCrosse::AnalyzeFrame(byte *data, Frame *frame) {
+  String result;
+#endif
   byte filter[5];
   filter[0] = 0;
   filter[1] = 0;
@@ -184,7 +192,7 @@ String LaCrosse::AnalyzeFrame(byte *data) {
 
   bool hideIt = false;
   for (int f = 0; f < 5; f++) {
-    if (frame.ID == filter[f]) {
+    if (frame->ID == filter[f]) {
       hideIt = true;
       break;
     }
@@ -200,7 +208,7 @@ String LaCrosse::AnalyzeFrame(byte *data) {
     result += "]";
 
     // Check CRC
-    if (!frame.IsValid) {
+    if (!frame->IsValid) {
       result += " CRC:WRONG";
     }
     else {
@@ -208,42 +216,46 @@ String LaCrosse::AnalyzeFrame(byte *data) {
 
       // Start
       result += " S:";
-      result += String(frame.Header, HEX);
+      result += String(frame->Header, HEX);
 
       // Sensor ID
       result += " ID:";
-      result += String(frame.ID, HEX);
+      result += String(frame->ID, HEX);
 
       // New battery flag
       result += " NewBatt:";
-      result += String(frame.NewBatteryFlag, DEC);
+      result += String(frame->NewBatteryFlag, DEC);
 
       // Bit 12
       result += " Bit12:";
-      result += String(frame.Bit12, DEC);
+      result += String(frame->Bit12, DEC);
 
       // Temperature
       result += " Temp:";
-      result += frame.Temperature;
+      result += frame->Temperature;
 
       // Humidity
       result += " Hum:";
-      result += frame.Humidity;
+      result += frame->Humidity;
 
       // Weak battery flag
       result += " WeakBatt:";
-      result += String(frame.WeakBatteryFlag, DEC);
+      result += String(frame->WeakBatteryFlag, DEC);
 
       // CRC
       result += " CRC:";
-      result += String(frame.CRC, DEC);
+      result += String(frame->CRC, DEC);
     }
-    
+
   }
 
   return result;
 }
 
+bool LaCrosse::IsValidDataRate(unsigned long dataRate) {
+  return dataRate == 17241ul || dataRate == 9579ul;
+}
+#ifndef RESTORE_ANALYZE
 String LaCrosse::GetFhemDataString(byte *data) {
   String fhemString = "";
 
@@ -268,8 +280,35 @@ bool LaCrosse::TryHandleData(byte *data) {
   return fhemString.length() > 0;
 
 }
+#else
+byte LaCrosse::TryHandleData(byte *data, ulong dataRate, byte displayFormat)
+{
+  struct Frame frame;
+  bool fOnlyIfValid = true;
+  String frameDataString;
 
+  if (!IsValidDataRate(dataRate)) {
+	  return 0;
+  }
 
-bool LaCrosse::IsValidDataRate(unsigned long dataRate) {
-  return dataRate == 17241ul || dataRate == 9579ul;
+  DecodeFrame(data, &frame, fOnlyIfValid);
+
+  if (frame.IsValid || !fOnlyIfValid) {
+	  if (displayFormat == 1) {
+		  frameDataString = AnalyzeFrame(data, &frame);
+	  }
+	  else if (frame.IsValid) {
+		  //if (displayFormat == 3) {
+		  //  frameDataString = BuildKVDataString(&frame, WSBase::WH1080);
+		  //}
+		  //else { // default
+		  	frameDataString = BuildFhemDataString(&frame);
+	     //}
+	  }
+      Serial.println(frameDataString);
+  }
+  return frame.IsValid ? LaCrosse::FRAME_LENGTH : 0;
 }
+#endif
+
+

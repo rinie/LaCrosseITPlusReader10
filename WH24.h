@@ -6,19 +6,22 @@
 #include "SensorBase.h"
 #include "LaCrosse.h"
 
-
+#define RESTORE_ANALYZE
 
 class WH24 : public WSBase {
     float  Pressure;        // hPa
   public:
     static const byte FRAME_LENGTH = 17;
     static byte CalculateCRC(byte data[]);
-    static void DecodeFrame(byte *bytes, struct WH24::Frame *frame);
+    static void DecodeFrame(byte *bytes, struct WH24::Frame *frame, bool fOnlyIfValid = true);
+    static bool IsValidDataRate(unsigned long dataRate);
+#ifndef RESTORE_ANALYZE
     static String AnalyzeFrame(byte *data);
     static bool TryHandleData(byte *data);
     static String GetFhemDataString(byte *data);
-    static bool IsValidDataRate(unsigned long dataRate);
-
+#else
+	static byte TryHandleData(byte *data, ulong dataRate, byte displayFormat = 0);
+#endif
   protected:
     //static String BuildFhemDataString(struct WH24::Frame *frame, byte sensorType);
     //static String BuildKVDataString(struct WH24::Frame *frame, byte sensorType);

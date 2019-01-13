@@ -5,7 +5,11 @@ JeeLink::JeeLink() {
 }
 
 void JeeLink::SwitchLed(boolean on) {
+#ifndef ESP32
   byte LED_PIN = 9;
+#else
+  byte LED_PIN = LED_BUILTIN;
+#endif
   if (m_ledEnabled) {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, !on);

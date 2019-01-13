@@ -2,7 +2,7 @@
 
 String WSBase::BuildFhemDataString(struct Frame *frame, byte sensorType) {
   /* Format
-  OK WS 60  1   4   193 52    2 88  4   101 15  20   ID=60  21.7�C  52%rH  600mm  Dir.: 112.5�  Wind:15m/s  Gust:20m/s
+  OK WS 60  1   4   193 52    2 88  4   101 15  20   ID=60  21.7?C  52%rH  600mm  Dir.: 112.5?  Wind:15m/s  Gust:20m/s
   OK WS ID  XXX TTT TTT HHH RRR RRR DDD DDD SSS SSS GGG GGG FFF PPP PPP
   |  |  |   |   |   |   |   |   |   |   |   |   |   |   |   |-- Flags *
   |  |  |   |   |   |   |   |   |   |   |   |   |   |   |------ WindGust * 10 LSB (0.0 ... 50.0 m/s)           FF/FF = none
@@ -14,7 +14,7 @@ String WSBase::BuildFhemDataString(struct Frame *frame, byte sensorType) {
   |  |  |   |   |   |   |   |   |------------------------------ Rain LSB (0 ... 9999 mm)                       FF/FF = none
   |  |  |   |   |   |   |   |---------------------------------- Rain MSB
   |  |  |   |   |   |   |-------------------------------------- Humidity (1 ... 99 %rH)                        FF = none
-  |  |  |   |   |   |------------------------------------------ Temp * 10 + 1000 LSB (-40 ... +60 �C)          FF/FF = none
+  |  |  |   |   |   |------------------------------------------ Temp * 10 + 1000 LSB (-40 ... +60 ?C)          FF/FF = none
   |  |  |   |   |---------------------------------------------- Temp * 10 + 1000 MSB
   |  |  |   |-------------------------------------------------- Sensor type (1=TX22IT, 2=NodeSensor, 3=WS1080)
   |  |  |------------------------------------------------------ Sensor ID (1 ... 63)
@@ -232,7 +232,7 @@ String WSBase::AnalyzeFrame(byte *data, Frame *frame, byte frameLength, String p
   return result;
 }
 
-String WSBase::BuildKVDataString(struct Frame *frame, byte sensorType) {
+String WSBase::BuildKVDataString(struct Frame *frame, SensorType sensorType) {
   // KeyValue example
   // Format:  KV <Type> <Address> <Key>=<Value>,<Key>=<Value>,<Key>=<Value>, ...
   // Example: KV ADDON 01 Voltage=3.3,UpTime=100
@@ -250,11 +250,14 @@ String WSBase::BuildKVDataString(struct Frame *frame, byte sensorType) {
   }
 
   switch (sensorType) {
+    case 1: sensorTypeName = "TX22IT"; break;
+    case 2: sensorTypeName = "NodeSensor"; break;
     case 3: sensorTypeName = "WH1080"; break;
     case 4: sensorTypeName = "LG"; break;
     case 5: sensorTypeName = "WH25"; break;
-    case 6: sensorTypeName = "W136"; break;
+    case W136: sensorTypeName = "W136"; break;
     case 7: sensorTypeName = "WH24"; break;
+    default: sensorTypeName = "XX"; break;
   }
 
 

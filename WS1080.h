@@ -9,12 +9,15 @@ class WS1080 : public WSBase {
 public:
   static const byte FRAME_LENGTH = 10;
   static byte CalculateCRC(byte data[]);
-  static void DecodeFrame(byte *bytes, struct WS1080::Frame *frame);
+  static void DecodeFrame(byte *bytes, struct WS1080::Frame *frame, bool fOnlyIfValid = true);
   static String AnalyzeFrame(byte *data);
+  static bool IsValidDataRate(unsigned long dataRate);
+#ifndef RESTORE_ANALYZE
   static bool TryHandleData(byte *data);
   static String GetFhemDataString(byte *data);
-  static bool IsValidDataRate(unsigned long dataRate);
-
+#else
+	static byte TryHandleData(byte *data, ulong dataRate, byte displayFormat = 0);
+#endif
 
 protected:
 

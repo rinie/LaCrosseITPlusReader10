@@ -126,7 +126,7 @@ String W136::GetFhemDataString(byte *data) {
     DecodeFrame(data, &frame);
     if (frame.IsValid) {
       //fhemString = BuildFhemDataString(&frame, 6);
-      fhemString = BuildKVDataString(&frame, 6);
+      fhemString = BuildKVDataString(&frame, WSBase::W136);
     }
   }
 

@@ -39,46 +39,58 @@
 
 // The following settings can also be set from FHEM
 #define ENABLE_ACTIVITY_LED    1         // <n>a     set to 0 if the blue LED bothers
-unsigned long DATA_RATE_S1   = 17241ul;  // <n>c     use one of the possible data rates (for transmit on RFM #1)
+ulong DATA_RATE_S1   = 17241ul;  // <n>c     use one of the possible data rates (for transmit on RFM #1)
 bool DEBUG                   = 0;        // <n>d     set to 1 to see debug messages
-unsigned long INITIAL_FREQ   = 868300;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515)
+ulong INITIAL_FREQ   = 868300;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515)
 int ALTITUDE_ABOVE_SEA_LEVEL = 0;        // <n>h     altituide above sea level
 byte TOGGLE_MODE_R1          = 3;        // <n>m     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #1)
 byte TOGGLE_MODE_R2          = 3;        // <n>M     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #2)
                                          // <n>o     set HF-parameter e.g. 50305o for RFM12 or 1,4o for RFM69
 byte PASS_PAYLOAD            = 0;        // <n>p     transmitted the payload on the serial port 1: all, 2: only undecoded data
-unsigned long DATA_RATE_R1   = 17241ul;  // <n>r     use one of the possible data rates (for RFM #1)
-unsigned long DATA_RATE_R2   = 9579ul;   // <n>R     use one of the possible data rates (for RFM #2)
+ulong DATA_RATE_R1   = 17241ul;  // <n>r     use one of the possible data rates (for RFM #1)
+ulong DATA_RATE_R2   = 9579ul;   // <n>R     use one of the possible data rates (for RFM #2)
                                          // <id,..>s send the bytes to the address id
 uint16_t TOGGLE_INTERVAL_R1  = 0;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
 uint16_t TOGGLE_INTERVAL_R2  = 0;        // <n>T     0=no toggle, else interval in seconds (for RFM #2)
                                          // v        show version
                                          // x        test command
 bool RELAY                   = 0;        // <n>y     if 1 all received packets will be retransmitted
-bool ANALYZE_FRAMES          = 0;        // <n>z     set to 1 to display analyzed frame data instead of the normal data
+byte displayFormat          = 0;        // <n>z     0 default, 1 AnalyzeFrame, 2 FhemDataString, 3 KVDataString
 
 
 // --- Variables -------------------------------------------------------------------------------------------------------
-unsigned long lastToggleR1 = 0;
-unsigned long lastToggleR2 = 0;
+ulong lastToggleR1 = 0;
+ulong lastToggleR2 = 0;
 byte commandData[32];
 byte commandDataPointer = 0;
 #ifndef USE_SX127x
 RFM rfm1(11, 12, 13, 10);
 RFM rfm2(11, 12, 13, 8);
 #else
-#define SS 18
-#define RST 14
-#define DI0 26
-RFM rfm1(SS, DI0, RST); // need RST?
-RFM rfm2(SS, DI0, RST); // need RST?
+// pins defined in pins_arduino.h
+#if 0
+// OLed
+static const uint8_t OLED_SCL = 15;
+static const uint8_t OLED_SDA = 4;
+static const uint8_t OLED_RST = 16;
+
+// LoRA
+static const uint8_t LORA_SCK = 5;
+static const uint8_t LORA_MOSI = 27;
+static const uint8_t LORA_MISO = 19;
+static const uint8_t LORA_CS = 18;
+static const uint8_t LORA_RST = 14;
+static const uint8_t LORA_IRQ = 26;
+#endif
+RFM rfm1(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
+RFM rfm2(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
 #endif
 
 JeeLink jeeLink;
 InternalSensors internalSensors;
 
-static unsigned long ConvertDataRate(unsigned long value) {
- unsigned long result = 0;
+static ulong ConvertDataRate(ulong value) {
+ ulong result = 0;
   switch (value) {
     case 0:
       result = 17241ul;
@@ -97,8 +109,8 @@ static unsigned long ConvertDataRate(unsigned long value) {
 }
 
 static void HandleSerialPort(char c) {
-  static unsigned long value;
-  unsigned long dataRate = 0;
+  static ulong value;
+  ulong dataRate = 0;
 
   if (c == ',') {
     commandData[commandDataPointer++] = value;
@@ -197,7 +209,7 @@ static void HandleSerialPort(char c) {
       break;
 
     case 'z':
-      ANALYZE_FRAMES = value;
+      displayFormat = value;
       break;
 
     default:
@@ -226,7 +238,7 @@ void SetDebugMode(boolean mode) {
 
 }
 
-void HandleCommandO(byte rfmNbr, unsigned long value, byte *data, byte size) {
+void HandleCommandO(byte rfmNbr, ulong value, byte *data, byte size) {
   // 50305o (is 0xC481) for RFM12 or 1,4o for RFM69
   if (size == 1 && rfm1.GetRadioType() == RFM::RFM12B) {
     if (rfmNbr == 1) {
@@ -344,18 +356,24 @@ void HandleReceivedData(RFM *rfm) {
 
   byte payload[PAYLOADSIZE];
   rfm->GetPayload(payload);
-
-  if (ANALYZE_FRAMES) {
-    ////WS1080::AnalyzeFrame(payload);
-    ////TX22IT::AnalyzeFrame(payload);
-    //LaCrosse::AnalyzeFrame(payload);
+#if 0
+  if (displayFormat) {
+#ifdef ESP32
+    WS1080::AnalyzeFrame(payload);
+    TX22IT::AnalyzeFrame(payload);
+    LaCrosse::AnalyzeFrame(payload);
     ////LevelSenderLib::AnalyzeFrame(payload);
-    ////EMT7110::AnalyzeFrame(payload);
-    ////TX38IT::AnalyzeFrame(payload);
+    EMT7110::AnalyzeFrame(payload);
+    TX38IT::AnalyzeFrame(payload);
     ////CustomSensor::AnalyzeFrame(payload);
     ////Serial.println();
+#else
+  Serial.println('Analyze Frames disabled');
+#endif
   }
-  else if (PASS_PAYLOAD == 1) {
+  else
+#endif
+  if (PASS_PAYLOAD == 1) {
     jeeLink.Blink(1);
     for (int i = 0; i < PAYLOADSIZE; i++) {
       Serial.print(payload[i], HEX);
@@ -368,6 +386,15 @@ void HandleReceivedData(RFM *rfm) {
 
     if (DEBUG) {
       Serial.print("\nEnd receiving, HEX raw data: ");
+#ifdef CHECKHWCRC
+      Serial.print("HW crc ok: ");
+      Serial.print(rfm->IsCrcOk() ? "yes " : "no ");
+#endif
+#ifdef CHECKFIFOEMPTY
+      Serial.print("HW payloadSize: ");
+      Serial.print(rfm->GetPayloadSize());
+      Serial.print(" ");
+#endif
       for (int i = 0; i < 16; i++) {
         Serial.print(payload[i], HEX);
         Serial.print(" ");
@@ -376,17 +403,16 @@ void HandleReceivedData(RFM *rfm) {
     }
 
     byte frameLength = 0;
-
+	ulong rfmDatarate = rfm->GetDataRate();
+#ifndef RESTORE_ANALYZE
     // Try LaCrosse like TX29DTH
     if (LaCrosse::IsValidDataRate(rfm->GetDataRate()) && LaCrosse::TryHandleData(payload)) {
       frameLength = LaCrosse::FRAME_LENGTH;
     }
-
     // Try TX22IT (WS 1600)
     else if (TX22IT::IsValidDataRate(rfm->GetDataRate()) && TX22IT::TryHandleData(payload)) {
       frameLength = TX22IT::GetFrameLength(payload);
     }
-
     // Try WS 1080
     else if (WS1080::IsValidDataRate(rfm->GetDataRate()) && WS1080::TryHandleData(payload)) {
       frameLength = WS1080::FRAME_LENGTH;
@@ -396,7 +422,25 @@ void HandleReceivedData(RFM *rfm) {
    else if (WH24::IsValidDataRate(rfm->GetDataRate()) && WH24::TryHandleData(payload)) {
       frameLength = WH24::FRAME_LENGTH;
     }
-
+#else
+    // Try LaCrosse like TX29DTH
+    if (0 != (frameLength = LaCrosse::TryHandleData(payload, rfmDatarate, displayFormat))) {
+      ;
+    }
+    // Try TX22IT (WS 1600)
+    else if (0 != (frameLength = TX22IT::TryHandleData(payload, rfmDatarate, displayFormat))) {
+      ;
+    }
+    // Try WS 1080
+    else if (0 != (frameLength = WS1080::TryHandleData(payload, rfmDatarate, displayFormat))) {
+      ;
+    }
+    // Try WH24
+   else if (0 != (frameLength = WH24::TryHandleData(payload, rfmDatarate, displayFormat))) {
+      //frameLength = WH24::FRAME_LENGTH;
+      ;
+    }
+#endif
     // Try WH25
     else if (WH25::IsValidDataRate(rfm->GetDataRate()) && WH25::TryHandleData(payload)) {
       frameLength = WH25::FRAME_LENGTH;
@@ -422,11 +466,17 @@ void HandleReceivedData(RFM *rfm) {
       frameLength = WT440XH::FRAME_LENGTH;
     }
 
+#ifndef RESTORE_ANALYZE
     // Try TX38IT
     else if (TX38IT::IsValidDataRate(rfm->GetDataRate()) && TX38IT::TryHandleData(payload)) {
       frameLength = TX38IT::FRAME_LENGTH;
     }
-
+#else
+    // Try TX22IT (WS 1600)
+    else if (0 != (frameLength = TX38IT::TryHandleData(payload, rfmDatarate, displayFormat))) {
+      ;
+    }
+#endif
     // Try CustomSensor
 //    else if (CustomSensor::IsValidDataRate(rfm->GetDataRate()) && CustomSensor::TryHandleData(payload)) {
 //      frameLength = CustomSensor::GetFrameLength(payload);
@@ -450,7 +500,7 @@ void HandleReceivedData(RFM *rfm) {
   rfm->EnableReceiver(true);
 }
 
-void HandleDataRateToggle(RFM *rfm, unsigned long *lastToggle, unsigned long *dataRate, uint16_t interval, byte toggleMode) {
+void HandleDataRateToggle(RFM *rfm, ulong *lastToggle, ulong *dataRate, uint16_t interval, byte toggleMode) {
   if (interval > 0) {
     // After about 50 days millis() will overflow to zero
     if (millis() < *lastToggle) {

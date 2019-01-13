@@ -23,15 +23,21 @@ public:
   static bool USE_OLD_ID_CALCULATION;
   static byte CalculateCRC(byte data[]);
   static void EncodeFrame(struct LaCrosse::Frame *frame, byte bytes[5]);
-  static void DecodeFrame(byte *bytes, struct LaCrosse::Frame *frame);
+  static void DecodeFrame(byte *bytes, struct LaCrosse::Frame *frame, bool fOnlyIfValid = true);
+#ifndef RESTORE_ANALYZE
   static String AnalyzeFrame(byte *data);
   static bool TryHandleData(byte *data);
+#endif
   static String GetFhemDataString(byte *data);
   static bool IsValidDataRate(unsigned long dataRate);
   static String BuildFhemDataString(struct LaCrosse::Frame *frame);
+#ifdef RESTORE_ANALYZE
+  static String AnalyzeFrame(byte *data, struct LaCrosse::Frame *frame);
+  static byte TryHandleData(byte *data, ulong dataRate, byte displayFormat = 0);
+#endif
 
 protected:
-  
+
 
 };
 

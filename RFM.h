@@ -8,7 +8,6 @@
 #endif
 #define PAYLOADSIZE 64
 #define IsRF69 (m_radioType == RFM69CW)
-
 #define IsSX127x (m_radioType == SX127x)
 
 class RFM {
@@ -55,8 +54,10 @@ private:
   bool m_debug;
   unsigned long m_dataRate;
   unsigned long m_frequency;
+#ifndef ESP32
   byte m_payloadPointer;
   unsigned long m_lastReceiveTime;
+#endif
   bool m_payloadReady;
   byte m_payload[PAYLOADSIZE];
   byte spi8(byte);

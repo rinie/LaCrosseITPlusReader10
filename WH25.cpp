@@ -14,7 +14,7 @@
    PP PP = Pressure (*10)
    CC = Checksum of previous 6 bytes (binary sum truncated to 8 bit)
    BB = Bitsum (XOR) of the 6 data bytes (high and low nibble exchanged)
-   
+
    OK VALUES WH25 50 Header=14,Temperature=xx.xx,Humidity=69,Pressure=1013.80, [E3 2A 8D 45 27 9A A0 AA AA AA 00 7D]
    OK VALUES WH25 43 Header=14,Temperature=23.80,Humidity=56,Pressure=1012.10, [E2 B2 7E 38 27 89 FA AA AA AA 00 5F]
 
@@ -82,11 +82,11 @@ void WH25::DecodeFrame(byte *bytes, struct Frame *frame) {
     frame->ErrorFlag = false;
     frame->LowBatteryFlag = true;
     frame->LowBatteryFlag = (bytes[1] & 0x08) >> 3;
-    
-    
+
+
     // Temperature (�C)
     int temp = (bytes[1] & 0x07) << 8 | bytes[2]; // 0x7ff if invalid
-    
+
    /* int temp = ((bytes[1] & 0xF) << 8) | bytes[2];
     if (tempkorr == 1) {
       temp = ((bytes[1] & 0x2) << 8) | bytes[2]; // ab WH25A 20/14 ist das Protokoll anders !?
@@ -119,7 +119,7 @@ String WH25::GetFhemDataString(byte *data) {
   DecodeFrame(data, &frame2);
   if (frame2.IsValid) {
     //fhemString2 = BuildFhemDataString(&frame2, 5);
-    fhemString2 = BuildKVDataString(&frame2, 5);
+    fhemString2 = BuildKVDataString(&frame2, WSBase::WH25);
   }
   //}
 

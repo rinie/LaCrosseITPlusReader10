@@ -16,16 +16,16 @@ ID: 8C, T=  8.0`C, relH= 96%, Wvel=  0.0m/s, Wmax=  0.0m/s, Wdir=E  , Rain=  40.
 */
 
 
-byte WS1080::CalculateCRC(byte data[]) {          
+byte WS1080::CalculateCRC(byte data[]) {
   return SensorBase::CalculateCRC(data, WS1080::FRAME_LENGTH -1);
 }
 
-void WS1080::DecodeFrame(byte *bytes, struct Frame *frame) {
+void WS1080::DecodeFrame(byte *bytes, struct Frame *frame, bool fOnlyIfValid) {
   frame->IsValid = true;
   frame->ID = 0;
   frame->NewBatteryFlag = false;
   frame->LowBatteryFlag = false;
-  frame->ErrorFlag = false; 
+  frame->ErrorFlag = false;
 
   frame->HasTemperature = true;
   frame->HasHumidity = true;
@@ -34,15 +34,17 @@ void WS1080::DecodeFrame(byte *bytes, struct Frame *frame) {
   frame->HasWindDirection = true;
   frame->HasWindGust = true;
   frame->HasPressure = false;
-  
 
-  frame->CRC = bytes[WS1080::FRAME_LENGTH - 1];
-  if (frame->CRC != CalculateCRC(bytes)) {
-    frame->IsValid = false;
-  }
+
 
   frame->Header = bytes[0] >> 4;
   if (frame->Header != 0xA) {
+    frame->IsValid = false;
+    return;
+  }
+
+  frame->CRC = bytes[WS1080::FRAME_LENGTH - 1];
+  if (frame->CRC != CalculateCRC(bytes)) {
     frame->IsValid = false;
   }
 
@@ -69,10 +71,10 @@ void WS1080::DecodeFrame(byte *bytes, struct Frame *frame) {
 
     // Wind gust (m/s)
     frame->WindGust = bytes[5] * 0.34;
-    
+
     //  Rain (0.5 mm steps)
     frame->Rain = (((bytes[6] & 0x0F) << 8) | bytes[7]) * 0.6;
-    
+
     // Wind direction (degree  N=0, NNE=22.5, S=180, ... )
     frame->WindDirection = 22.5 * (bytes[8] & 0x0F);
 
@@ -80,6 +82,11 @@ void WS1080::DecodeFrame(byte *bytes, struct Frame *frame) {
 }
 
 
+bool WS1080::IsValidDataRate(unsigned long dataRate) {
+  return dataRate == 17241ul;
+}
+
+#ifndef RESTORE_ANALYZE
 String WS1080::AnalyzeFrame(byte *data) {
   struct Frame frame;
   DecodeFrame(data, &frame);
@@ -109,12 +116,38 @@ bool WS1080::TryHandleData(byte *data) {
   if (fhemString.length() > 0) {
     Serial.println(fhemString);
   }
- 
+
   return fhemString.length() > 0;
 }
+#else
+byte WS1080::TryHandleData(byte *data, ulong dataRate, byte displayFormat)
+{
+  struct Frame frame;
+  bool fOnlyIfValid = true;
+  String frameDataString;
 
+  if (!IsValidDataRate(dataRate)) {
+	  return 0;
+  }
 
+  DecodeFrame(data, &frame);
 
-bool WS1080::IsValidDataRate(unsigned long dataRate) {
-  return dataRate == 17241ul;
+  if (frame.IsValid || !fOnlyIfValid) {
+	  if (displayFormat == 1) {
+		  frameDataString = WSBase::AnalyzeFrame(data, &frame, WS1080::FRAME_LENGTH, "WS1080");
+	  }
+	  else if (frame.IsValid) {
+		  if (displayFormat == 3) {
+		    frameDataString = BuildKVDataString(&frame, WSBase::WH1080);
+		  }
+		  else { // default
+		  	frameDataString = BuildFhemDataString(&frame, 3);
+	     }
+	  }
+      Serial.println(frameDataString);
+  }
+  return frame.IsValid ? WS1080::FRAME_LENGTH : 0;
 }
+#endif
+
+
