@@ -1,20 +1,29 @@
+
+
+[LaCrosseITPlusReader.10.1sJoRkr (SX127x f:868300 r:17241)]
 OK 9 33 1 4 175 106
-OK 9 33 1 4 174 106
-OK 9 33 1 4 174 106
-OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=8.40,WindDirection=279.00,WindGust=12.32,UV=0.00,LowBatteryFlag=1,
-OK 9 33 1 4 175 106
-OK 9 33 1 4 175 106
-OK 9 33 1 4 175 106
-OK WS 136 3 4 123 51 0 0 5 70 0 0 0 0 0
-OK 9 33 1 4 174 106
-OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=10.36,WindDirection=297.00,WindGust=13.44,UV=0.00,LowBatteryFlag=1,
+OK VALUES WH24 139 Temperature=8.80,Humidity=99,Rain=1319.10,WindSpeed=4.20,WindDirection=232.00,WindGust=6.72,UV=0.00,LowBatteryFlag=1,
+OK WS 136 3 4 128 65 0 0 5 70 0 0 0 0 0
 OK 9 33 1 4 175 106
 OK 9 33 1 4 175 106
+OK VALUES WH24 139 Temperature=8.80,Humidity=99,Rain=1319.10,WindSpeed=4.20,WindDirection=265.00,WindGust=5.60,UV=0.00,LowBatteryFlag=1,
 OK 9 33 1 4 175 106
-OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=8.68,WindDirection=354.00,WindGust=11.20,UV=0.00,LowBatteryFlag=1,
 OK 9 33 1 4 175 106
-OK 9 33 1 4 174 106
-OK VALUES WH24 139 Temperature=5.80,Humidity=99,Rain=1298.70,WindSpeed=7.28,WindDirection=285.00,WindGust=10.08,UV=0.00,LowBatteryFlag=1,
+OK VALUES WH24 139 Temperature=8.80,Humidity=99,Rain=1319.10,WindSpeed=5.32,WindDirection=309.00,WindGust=6.72,UV=0.00,LowBatteryFlag=1,
+OK 9 33 1 4 175 106
+OK 9 33 1 4 175 106
+OK VALUES WH24 139 Temperature=8.80,Humidity=99,Rain=1319.10,WindSpeed=3.50,WindDirection=236.00,WindGust=4.48,UV=0.00,LowBatteryFlag=1,
+OK WS 136 3 4 128 65 0 0 5 70 0 0 0 0 0
 OK 9 33 1 4 175 106
 
-Temp = 5.6 hum = 99
+1z mode:
+WH24 [24 8b 8 e1 e8 63 25 b 11 2d 0 0 0 2a 62 45 22 ] CRC:OK S:24 ID:8b NewBatt:0 LowBatt:1 Error:0 Temp:8.80 Hum:99 Rain:1319.10 Wind:5.18m/s from:264.00 Gust:12.32 m/s CRC:fe
+LaCrosse [98 45 99 6a a6 ] CRC:OK S:9 ID:21 NewBatt:0 Bit12:0 Temp:19.90 Hum:106 WeakBatt:0 CRC:166
+LaCrosse [98 45 99 6a a6 ] CRC:OK S:9 ID:21 NewBatt:0 Bit12:0 Temp:19.90 Hum:106 WeakBatt:0 CRC:166
+WH24 [24 8b 59 e1 e8 63 49 c 11 2d 0 0 0 33 72 25 91 ] CRC:OK S:24 ID:8b NewBatt:0 LowBatt:1 Error:0 Temp:8.80 Hum:99 Rain:1319.10 Wind:10.22m/s from:345.00 Gust:13.44 m/s CRC:fe
+LaCrosse [98 45 99 6a a6 ] CRC:OK S:9 ID:21 NewBatt:0 Bit12:0 Temp:19.90 Hum:106 WeakBatt:0 CRC:166
+LaCrosse [98 45 99 6a a6 ] CRC:OK S:9 ID:21 NewBatt:0 Bit12:0 Temp:19.90 Hum:106 WeakBatt:0 CRC:166
+WH24 [24 8b b e1 e8 63 27 6 11 2d 0 0 0 2f 3a ac 66 ] CRC:OK S:24 ID:8b NewBatt:0 LowBatt:1 Error:0 Temp:8.80 Hum:99 Rain:1319.10 Wind:5.46m/s from:267.00 Gust:6.72 m/s CRC:fe
+WS1080 [a8 80 98 41 0 0 0 0 16 d7 ] CRC:OK S:a ID:88 NewBatt:0 LowBatt:0 Error:0 Temp:15.20 Hum:65 Rain:0.00 Wind:0.00m/s from:135.00 Gust:0.00 m/s CRC:d7
+LaCrosse [98 45 99 6a a6 ] CRC:OK S:9 ID:21 NewBatt:0 Bit12:0 Temp:19.90 Hum:106 WeakBatt:0 CRC:166
+LaCrosse [98 45 99 6a a6 ] CRC:OK S:9 ID:21 NewBatt:0 Bit12:0 Temp:19.90 Hum:106 WeakBatt:0 CRC:166
