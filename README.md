@@ -1,3 +1,9 @@
+
+2021:
+Need to check https://github.com/baumrasen/LacrossITPlusReader/tree/wh65b
+And https://github.com/SevenW/wirelessweather/tree/master/ESP32-FineOffset-FSK
+
+
 LaCrosse IT+ reader
 taken from http://sourceforge.net/p/fhem/code/HEAD/tree/trunk/fhem/contrib/arduino/36_LaCrosse-LaCrosseITPlusReader.zip?format=raw
 
@@ -25,6 +31,7 @@ See https://github.com/Heltec-Aaron-Lee/WiFi_Kit_series
 
 [LaCrosseWh1080ITPlusReader.00.2h (None) @AutoToggleWH1080 30 Seconds 17241 kbps / 868300 kHz]
 042577 LaCrosse [98 45 96 6A 3F ] CRC:OK S:9 ID:33 NewBatt:0 Bit12:0 Temp:19.60 WeakBatt:0 Hum:106 CRC:63
+
 
 047997 Unknown [24 8B F7 61 DC 63 34 8 10 C7 0 0 0 0 0 ] CRC:WRONG Size:15 #:1
 
