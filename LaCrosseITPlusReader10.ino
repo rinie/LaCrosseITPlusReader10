@@ -4,13 +4,13 @@
 // info    : http://forum.jeelabs.net/node/110
 //           http://fredboboss.free.fr/tx29/tx29_sw.php
 //           http://www.f6fbb.org/domo/sensors/
-//           http://www.mikrocontroller.net/topic/67273 
+//           http://www.mikrocontroller.net/topic/67273
 //           benedikt.k org rinie,marf,joop 1 nov 2011, slightly modified by Rufik (r.markiewicz@gmail.com)
 // Changelog: 2012-02-11: initial release 1.0
 //            2014-03-14: I have this in SubVersion, so no need to do it here
 
 #define PROGNAME         "LaCrosseITPlusReader"
-#define PROGVERS         "10.1sJo" 
+#define PROGVERS         "10.1sJo"
 
 #include "SPI.h"
 #include "RFM.h"
@@ -34,14 +34,14 @@
 #include "W136.h"
 
 // --- Configuration ---------------------------------------------------------------------------------------------------
-#define RECEIVER_ENABLED       1                     // Set to 0 if you don't want to receive 
+#define RECEIVER_ENABLED       1                     // Set to 0 if you don't want to receive
 #define USE_OLD_IDS            0                     // Set to 1 to use the old ID calcualtion
 
 // The following settings can also be set from FHEM
 #define ENABLE_ACTIVITY_LED    1         // <n>a     set to 0 if the blue LED bothers
 unsigned long DATA_RATE_S1   = 17241ul;  // <n>c     use one of the possible data rates (for transmit on RFM #1)
-bool DEBUG                   = 0;        // <n>d     set to 1 to see debug messages
-unsigned long INITIAL_FREQ   = 868300;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515) 
+bool DEBUG                   = 1;        // <n>d     set to 1 to see debug messages
+unsigned long INITIAL_FREQ   = 868350;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515)
 int ALTITUDE_ABOVE_SEA_LEVEL = 0;        // <n>h     altituide above sea level
 byte TOGGLE_MODE_R1          = 3;        // <n>m     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #1)
 byte TOGGLE_MODE_R2          = 3;        // <n>M     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #2)
@@ -53,8 +53,8 @@ unsigned long DATA_RATE_R2   = 9579ul;   // <n>R     use one of the possible dat
 uint16_t TOGGLE_INTERVAL_R1  = 0;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
 uint16_t TOGGLE_INTERVAL_R2  = 0;        // <n>T     0=no toggle, else interval in seconds (for RFM #2)
                                          // v        show version
-                                         // x        test command 
-bool RELAY                   = 0;        // <n>y     if 1 all received packets will be retransmitted  
+                                         // x        test command
+bool RELAY                   = 0;        // <n>y     if 1 all received packets will be retransmitted
 bool ANALYZE_FRAMES          = 0;        // <n>z     set to 1 to display analyzed frame data instead of the normal data
 
 
@@ -63,8 +63,10 @@ unsigned long lastToggleR1 = 0;
 unsigned long lastToggleR2 = 0;
 byte commandData[32];
 byte commandDataPointer = 0;
-RFM rfm1(11, 12, 13, 10);
-RFM rfm2(11, 12, 13, 8);
+RFM rfm1(MOSI, MISO, SCK, SS, 2);
+#ifndef USE_RFM2
+RFM rfm2(11, 12, 13, 8, 2);
+#endif
 
 JeeLink jeeLink;
 InternalSensors internalSensors;
@@ -114,7 +116,7 @@ static void HandleSerialPort(char c) {
       HandleCommandX(value);
       break;
     case 'a':
-      // Activity LED    
+      // Activity LED
       jeeLink.EnableLED(value);
       break;
     case 'r':
@@ -125,12 +127,14 @@ static void HandleSerialPort(char c) {
         DATA_RATE_R1 = dataRate;
         rfm1.SetDataRate(DATA_RATE_R1);
       }
+#ifndef USE_RFM2
       else {
         if (rfm2.IsConnected()) {
           DATA_RATE_R2 = dataRate;
           rfm2.SetDataRate(DATA_RATE_R2);
         }
       }
+#endif
       break;
     case 'c':
       // TX Data rate
@@ -178,12 +182,13 @@ static void HandleSerialPort(char c) {
       rfm1.SetFrequency(value);
       break;
 
+#ifndef USE_RFM2
     case 'F':
       if (rfm2.IsConnected()) {
         rfm2.SetFrequency(value);
       }
       break;
-
+#endif
     case 'y':
       RELAY = value;
       break;
@@ -214,8 +219,9 @@ void SetDebugMode(boolean mode) {
   LevelSenderLib::SetDebugMode(mode);
   WT440XH::SetDebugMode(mode);
   rfm1.SetDebugMode(mode);
+#ifndef USE_RFM2
   rfm2.SetDebugMode(mode);
-
+#endif
 }
 
 void HandleCommandO(byte rfmNbr, unsigned long value, byte *data, byte size) {
@@ -224,17 +230,21 @@ void HandleCommandO(byte rfmNbr, unsigned long value, byte *data, byte size) {
     if (rfmNbr == 1) {
       rfm1.SetHFParameter(value);
     }
+#ifndef USE_RFM2
     else if (rfmNbr == 2) {
       rfm2.SetHFParameter(value);
     }
+#endif
   }
   else if (size == 2 && rfm1.GetRadioType() == RFM::RFM69CW) {
     if (rfmNbr == 1) {
       rfm1.SetHFParameter(data[0], data[1]);
     }
+#ifndef USE_RFM2
     else if (rfmNbr == 2) {
       rfm2.SetHFParameter(data[0], data[1]);
     }
+#endif
   }
 
 
@@ -258,7 +268,7 @@ void HandleCommandS(byte *data, byte size) {
 }
 
 
-// This function is for testing 
+// This function is for testing
 void HandleCommandX(byte value) {
   //// A8 C0 58 5E 00 00 00 86 0A D8
 
@@ -291,7 +301,7 @@ void HandleCommandV() {
 
   Serial.print(" f:");
   Serial.print(rfm1.GetFrequency());
-  
+
   if (TOGGLE_INTERVAL_R1) {
     Serial.print(" t:");
     Serial.print(TOGGLE_INTERVAL_R1);
@@ -301,10 +311,11 @@ void HandleCommandV() {
   else {
     Serial.print(" r:");
     Serial.print(rfm1.GetDataRate());
-    
+
   }
   Serial.print(")");
 
+#ifndef USE_RFM2
   if(rfm2.IsConnected()) {
     Serial.print(" + (");
     Serial.print(rfm2.GetRadioName());
@@ -323,7 +334,7 @@ void HandleCommandV() {
     }
     Serial.print(")");
   }
-
+#endif
   if (internalSensors.HasBMP180()) {
     Serial.print(" + BMP180");
   }
@@ -383,7 +394,7 @@ void HandleReceivedData(RFM *rfm) {
     else if (WS1080::IsValidDataRate(rfm->GetDataRate()) && WS1080::TryHandleData(payload)) {
       frameLength = WS1080::FRAME_LENGTH;
     }
-    
+
     // Try WH24
    else if (WH24::IsValidDataRate(rfm->GetDataRate()) && WH24::TryHandleData(payload)) {
       frameLength = WH24::FRAME_LENGTH;
@@ -398,7 +409,7 @@ void HandleReceivedData(RFM *rfm) {
     else if (W136::IsValidDataRate(rfm->GetDataRate()) && W136::TryHandleData(payload)) {
      frameLength = W136::FRAME_LENGTH;
     }
-    
+
     // Try LevelSender
 //    else if (LevelSenderLib::IsValidDataRate(rfm->GetDataRate()) && LevelSenderLib::TryHandleData(payload)) {
 //      frameLength = LevelSenderLib::FRAME_LENGTH;
@@ -419,6 +430,11 @@ void HandleReceivedData(RFM *rfm) {
       frameLength = TX38IT::FRAME_LENGTH;
     }
 
+if (!frameLength) {
+		Serial.print("Unknown Payload ");
+		Serial.print(payload[0], HEX);
+		Serial.println();
+}
     // Try CustomSensor
 //    else if (CustomSensor::IsValidDataRate(rfm->GetDataRate()) && CustomSensor::TryHandleData(payload)) {
 //      frameLength = CustomSensor::GetFrameLength(payload);
@@ -444,7 +460,7 @@ void HandleReceivedData(RFM *rfm) {
 
 void HandleDataRateToggle(RFM *rfm, unsigned long *lastToggle, unsigned long *dataRate, uint16_t interval, byte toggleMode) {
   if (interval > 0) {
-    // After about 50 days millis() will overflow to zero 
+    // After about 50 days millis() will overflow to zero
     if (millis() < *lastToggle) {
       *lastToggle = 0;
     }
@@ -503,21 +519,23 @@ void loop(void) {
     if (rfm1.PayloadIsReady()) {
       HandleReceivedData(&rfm1);
     }
-    
+
+#ifndef USE_RFM2
     if(rfm2.IsConnected()) {
       rfm2.Receive();
       if (rfm2.PayloadIsReady()) {
         HandleReceivedData(&rfm2);
       }
     }
-    
+#endif
   }
- 
+
   // Handle the data rate
   // --------------------
   HandleDataRateToggle(&rfm1, &lastToggleR1, &DATA_RATE_R1, TOGGLE_INTERVAL_R1, TOGGLE_MODE_R1);
+#ifndef USE_RFM2
   HandleDataRateToggle(&rfm2, &lastToggleR2, &DATA_RATE_R2, TOGGLE_INTERVAL_R2, TOGGLE_MODE_R2);
-
+#endif
 }
 
 
@@ -530,7 +548,7 @@ void setup(void) {
 
   SetDebugMode(DEBUG);
   LaCrosse::USE_OLD_ID_CALCULATION = USE_OLD_IDS;
-  
+
   Wire.begin();
 
   internalSensors.TryInitializeBMP180();
@@ -544,7 +562,8 @@ void setup(void) {
   rfm1.SetFrequency(INITIAL_FREQ);
   rfm1.SetDataRate(DATA_RATE_R1);
   rfm1.EnableReceiver(true);
-  
+
+#ifndef USE_RFM2
   rfm2.Begin(false);
   if(rfm2.IsConnected()) {
     rfm2.InitializeLaCrosse();
@@ -552,8 +571,8 @@ void setup(void) {
     rfm2.SetDataRate(DATA_RATE_R2);
     rfm2.EnableReceiver(true);
   }
-  
-  
+#endif
+
   if (DEBUG) {
     Serial.println("Radio setup complete. Starting to receive messages");
   }

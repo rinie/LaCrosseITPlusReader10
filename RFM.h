@@ -2,9 +2,11 @@
 #define _RFMXX_h
 
 #include "Arduino.h"
+#include <spi.h>
 
 #define PAYLOADSIZE 64
-#define IsRF69 m_radioType == RFM69CW
+//#define IsRF69 m_radioType == RFM69CW
+#define IsRF69 1
 
 
 class RFM {
@@ -15,7 +17,7 @@ public:
     RFM69CW = 2
   };
 
-  RFM(byte mosi, byte miso, byte sck, byte ss);
+  RFM(byte mosi, byte miso, byte sck, byte ss, byte irq);
   void Begin(bool isPrimary);
   bool IsConnected();
   bool PayloadIsReady();
@@ -39,7 +41,7 @@ public:
 
 private:
   RadioType m_radioType;
-  byte m_mosi, m_miso, m_sck, m_ss;
+  byte m_mosi, m_miso, m_sck, m_ss, m_irq;
   bool m_debug;
   unsigned long m_dataRate;
   unsigned long m_frequency;
