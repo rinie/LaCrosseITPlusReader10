@@ -41,17 +41,21 @@
 #define ENABLE_ACTIVITY_LED    1         // <n>a     set to 0 if the blue LED bothers
 ulong DATA_RATE_S1   = 17241ul;  // <n>c     use one of the possible data rates (for transmit on RFM #1)
 bool DEBUG                   = 0;        // <n>d     set to 1 to see debug messages
-ulong INITIAL_FREQ   = 868300;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515)
+ulong INITIAL_FREQ   = 868350;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515)
 int ALTITUDE_ABOVE_SEA_LEVEL = 0;        // <n>h     altituide above sea level
 byte TOGGLE_MODE_R1          = 3;        // <n>m     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #1)
 byte TOGGLE_MODE_R2          = 3;        // <n>M     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #2)
                                          // <n>o     set HF-parameter e.g. 50305o for RFM12 or 1,4o for RFM69
 byte PASS_PAYLOAD            = 0;        // <n>p     transmitted the payload on the serial port 1: all, 2: only undecoded data
 ulong DATA_RATE_R1   = 17241ul;  // <n>r     use one of the possible data rates (for RFM #1)
+#ifdef USE_RFM2
 ulong DATA_RATE_R2   = 9579ul;   // <n>R     use one of the possible data rates (for RFM #2)
+#endif
                                          // <id,..>s send the bytes to the address id
-uint16_t TOGGLE_INTERVAL_R1  = 0;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
+uint16_t TOGGLE_INTERVAL_R1  = 10;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
+#ifdef USE_RFM2
 uint16_t TOGGLE_INTERVAL_R2  = 0;        // <n>T     0=no toggle, else interval in seconds (for RFM #2)
+#endif
                                          // v        show version
                                          // x        test command
 bool RELAY                   = 0;        // <n>y     if 1 all received packets will be retransmitted
@@ -60,12 +64,16 @@ byte displayFormat          = 0;        // <n>z     0 default, 1 AnalyzeFrame, 2
 
 // --- Variables -------------------------------------------------------------------------------------------------------
 ulong lastToggleR1 = 0;
+#ifdef USE_RFM2
 ulong lastToggleR2 = 0;
+#endif
 byte commandData[32];
 byte commandDataPointer = 0;
 #ifndef USE_SX127x
-RFM rfm1(11, 12, 13, 10);
-RFM rfm2(11, 12, 13, 8);
+RFM rfm1(10, 2);
+#ifdef USE_RFM2
+RFM rfm2(11, 12, 13, 8, 2);
+#endif
 #else
 // pins defined in pins_arduino.h
 #if 0
@@ -145,12 +153,14 @@ static void HandleSerialPort(char c) {
         DATA_RATE_R1 = dataRate;
         rfm1.SetDataRate(DATA_RATE_R1);
       }
+#ifdef USE_RFM2
       else {
         if (rfm2.IsConnected()) {
           DATA_RATE_R2 = dataRate;
           rfm2.SetDataRate(DATA_RATE_R2);
         }
       }
+#endif
       break;
     case 'c':
       // TX Data rate
@@ -170,10 +180,12 @@ static void HandleSerialPort(char c) {
       // Toggle data rate
       TOGGLE_INTERVAL_R1 = value;
       break;
+#ifdef USE_RFM2
     case 'T':
       // Toggle data rate
       TOGGLE_INTERVAL_R2 = value;
       break;
+#endif
     case 'v':
       // Version info
       HandleCommandV();
@@ -198,12 +210,13 @@ static void HandleSerialPort(char c) {
       rfm1.SetFrequency(value);
       break;
 
+#ifdef USE_RFM2
     case 'F':
       if (rfm2.IsConnected()) {
         rfm2.SetFrequency(value);
       }
       break;
-
+#endif
     case 'y':
       RELAY = value;
       break;
@@ -234,8 +247,9 @@ void SetDebugMode(boolean mode) {
   LevelSenderLib::SetDebugMode(mode);
   WT440XH::SetDebugMode(mode);
   rfm1.SetDebugMode(mode);
+#ifdef USE_RFM2
   rfm2.SetDebugMode(mode);
-
+#endif
 }
 
 void HandleCommandO(byte rfmNbr, ulong value, byte *data, byte size) {
@@ -244,17 +258,21 @@ void HandleCommandO(byte rfmNbr, ulong value, byte *data, byte size) {
     if (rfmNbr == 1) {
       rfm1.SetHFParameter(value);
     }
+#ifdef USE_RFM2
     else if (rfmNbr == 2) {
       rfm2.SetHFParameter(value);
     }
+#endif
   }
   else if (size == 2 && rfm1.GetRadioType() == RFM::RFM69CW) {
     if (rfmNbr == 1) {
       rfm1.SetHFParameter(data[0], data[1]);
     }
+#ifdef USE_RFM2
     else if (rfmNbr == 2) {
       rfm2.SetHFParameter(data[0], data[1]);
     }
+#endif
   }
 
 
@@ -325,6 +343,7 @@ void HandleCommandV() {
   }
   Serial.print(")");
 
+#ifdef USE_RFM2
   if(rfm2.IsConnected()) {
     Serial.print(" + (");
     Serial.print(rfm2.GetRadioName());
@@ -343,11 +362,10 @@ void HandleCommandV() {
     }
     Serial.print(")");
   }
-
+#endif
   if (internalSensors.HasBMP180()) {
     Serial.print(" + BMP180");
   }
-
   Serial.println(']');
 }
 
@@ -368,7 +386,7 @@ void HandleReceivedData(RFM *rfm) {
     ////CustomSensor::AnalyzeFrame(payload);
     ////Serial.println();
 #else
-  Serial.println('Analyze Frames disabled');
+  Serial.println("Analyze Frames disabled");
 #endif
   }
   else
@@ -383,7 +401,6 @@ void HandleReceivedData(RFM *rfm) {
   }
   else {
     jeeLink.Blink(1);
-
     if (DEBUG) {
       Serial.print("\nEnd receiving, HEX raw data: ");
 #ifdef CHECKHWCRC
@@ -465,7 +482,6 @@ void HandleReceivedData(RFM *rfm) {
     else if (WT440XH::IsValidDataRate(rfm->GetDataRate()) && WT440XH::TryHandleData(payload)) {
       frameLength = WT440XH::FRAME_LENGTH;
     }
-
 #ifndef RESTORE_ANALYZE
     // Try TX38IT
     else if (TX38IT::IsValidDataRate(rfm->GetDataRate()) && TX38IT::TryHandleData(payload)) {
@@ -553,7 +569,6 @@ void loop(void) {
   // Periodically send own sensor data
   // ---------------------------------
   internalSensors.TryHandleData();
-
   // Handle the data reception
   // -------------------------
   if (RECEIVER_ENABLED) {
@@ -562,30 +577,32 @@ void loop(void) {
       HandleReceivedData(&rfm1);
     }
 
+#ifdef USE_RFM2
     if(rfm2.IsConnected()) {
       rfm2.Receive();
       if (rfm2.PayloadIsReady()) {
         HandleReceivedData(&rfm2);
       }
     }
-
+#endif
   }
 
   // Handle the data rate
   // --------------------
   HandleDataRateToggle(&rfm1, &lastToggleR1, &DATA_RATE_R1, TOGGLE_INTERVAL_R1, TOGGLE_MODE_R1);
+#ifdef USE_RFM2
   HandleDataRateToggle(&rfm2, &lastToggleR2, &DATA_RATE_R2, TOGGLE_INTERVAL_R2, TOGGLE_MODE_R2);
-
+#endif
 }
 
 
 void setup(void) {
   Serial.begin(57600);
   delay(200);
+
   if (DEBUG) {
     Serial.println("*** LaCrosse weather station wireless receiver for IT+ sensors ***");
   }
-
   SetDebugMode(DEBUG);
   LaCrosse::USE_OLD_ID_CALCULATION = USE_OLD_IDS;
 
@@ -603,6 +620,7 @@ void setup(void) {
   rfm1.SetDataRate(DATA_RATE_R1);
   rfm1.EnableReceiver(true);
 
+#ifdef USE_RFM2
   rfm2.Begin(false);
   if(rfm2.IsConnected()) {
     rfm2.InitializeLaCrosse();
@@ -610,12 +628,11 @@ void setup(void) {
     rfm2.SetDataRate(DATA_RATE_R2);
     rfm2.EnableReceiver(true);
   }
-
+#endif
 
   if (DEBUG) {
     Serial.println("Radio setup complete. Starting to receive messages");
   }
-
   // FHEM needs this information
   delay(1000);
   HandleCommandV();

@@ -5,10 +5,16 @@
 
 #ifdef ESP32
 #define USE_SX127x
-#endif
-#define PAYLOADSIZE 64
-#define IsRF69 (m_radioType == RFM69CW)
 #define IsSX127x (m_radioType == SX127x)
+#else
+#include <spi.h>
+#define USE_SPI_H
+#define USE_SPI8_H
+#define USE_SPI16_H
+#endif
+#define IsRF69 (m_radioType == RFM69CW)
+#define IsSX127x (0)
+#define PAYLOADSIZE 64
 
 class RFM {
 public:
@@ -18,7 +24,7 @@ public:
     RFM69CW = 2,
     SX127x = 3
   };
-#ifndef ESP32
+#ifndef USE_SPI_H
   RFM(byte mosi, byte miso, byte sck, byte ss);
 #else
   RFM(byte ss=SS, byte irqPin=2, byte reset=-1); // like USE_SPI_H
@@ -46,7 +52,7 @@ public:
 
 private:
   RadioType m_radioType;
-#ifndef ESP32
+#ifndef USE_SPI_H
   byte m_mosi, m_miso, m_sck, m_ss, m_irq;
 #else
   byte m_ss, m_irqPin, m_reset;
@@ -54,7 +60,7 @@ private:
   bool m_debug;
   unsigned long m_dataRate;
   unsigned long m_frequency;
-#ifndef ESP32
+#ifndef USE_SPI_H
   byte m_payloadPointer;
   unsigned long m_lastReceiveTime;
 #endif

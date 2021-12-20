@@ -6,6 +6,7 @@
 #define m_sck SCK
 #define USE_SPI8_H
 #define USE_SPI16_H
+#else
 #endif
 
 void RFM::Receive() {
@@ -20,7 +21,7 @@ void RFM::Receive() {
     }
   }
   else {
-#ifndef ESP32
+#ifndef USE_SPI_H
     bool hasData = false;
     digitalWrite(m_ss, LOW);
     asm("nop");
@@ -44,7 +45,7 @@ void RFM::Receive() {
 
 void RFM::GetPayload(byte *data) {
   m_payloadReady = false;
-#ifndef ESP32
+#ifndef USE_SPI_H
   m_payloadPointer = 0;
 #endif
   for (int i = 0; i < PAYLOADSIZE; i++) {
@@ -230,6 +231,46 @@ void RFM::InitializeLaCrosse() {
   ClearFifo();
 }
 
+#if 1
+byte RFM::spi8(byte value) {
+  byte res;
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  res = SPI.transfer(value);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+  return res;
+}
+
+unsigned short RFM::spi16(unsigned short value) {
+  unsigned short res;
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  res = SPI.transfer16(value);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+  return res;
+}
+
+byte RFM::ReadReg(byte addr) {
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  SPI.transfer(addr & 0x7F);
+  uint8_t regval = SPI.transfer(0);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+  return regval;
+}
+
+void RFM::WriteReg(byte addr, byte value) {
+  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
+  digitalWrite(m_ss, LOW);
+  SPI.transfer(addr | 0x80);
+  SPI.transfer(value);
+  digitalWrite(m_ss, HIGH);
+  SPI.endTransaction();
+}
+#else
 #ifndef USE_SPI8_H
 #define clrb(pin) (*portOutputRegister(digitalPinToPort(pin)) &= ~digitalPinToBitMask(pin))
 #define setb(pin) (*portOutputRegister(digitalPinToPort(pin)) |= digitalPinToBitMask(pin))
@@ -340,6 +381,7 @@ void RFM::WriteReg(byte addr, byte value) {
   SPI.endTransaction();
 #endif
 }
+#endif
 
 RFM::RadioType RFM::GetRadioType() {
   return m_radioType;
@@ -389,7 +431,6 @@ void RFM::Begin(bool isPrimary) {
       m_radioType = RFM::RFM69CW;
     }
   }
-
   // Is there a RFM12 ?
   if (m_radioType == RFM::None) {
     if (isPrimary) {
@@ -419,7 +460,7 @@ void RFM::Begin(bool isPrimary) {
   }
 }
 
-#ifndef ESP32
+#ifndef USE_SPI_H
 RFM::RFM(byte mosi, byte miso, byte sck, byte ss) {
   m_mosi = mosi;
   m_miso = miso;
@@ -434,14 +475,15 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
   m_debug = false;
   m_dataRate = 17241;
   m_frequency = 868300;
-#ifndef ESP32
+#ifndef USE_SPI_H
   m_payloadPointer = 0;
   m_lastReceiveTime = 0;
 #endif
   m_payloadReady = false;
 
+return; // constructor before setup????????????????
 
-#ifndef ESP32
+#ifndef USE_SPI_H
   pinMode(m_mosi, OUTPUT);
   pinMode(m_miso, INPUT);
   pinMode(m_sck, OUTPUT);
@@ -449,7 +491,9 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
 
   digitalWrite(m_ss, HIGH);
 #else
+#ifndef USE_SX127x
 	  pinMode(m_irqPin, INPUT);
+#endif
 	  pinMode(m_ss, OUTPUT);
 	  delay(10);
 	  digitalWrite(m_ss, HIGH);
@@ -463,8 +507,8 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
 		digitalWrite(m_reset, HIGH);
 		delay(10);
 	  }
-#endif
 	  SPI.begin();
+#endif
 #endif
 }
 
@@ -494,7 +538,11 @@ void RFM::SendArray(byte *data, byte length) {
 	  #endif
 	  }
 	  else {
+	  #ifdef USE_SX127x
 	  	  WriteReg(REG_RXCONFIG, (ReadReg(REG_PACKETCONFIG2)) | RF_RXCONFIG_RESTARTRXWITHPLLLOCK);
+	  #else
+		  Serial.print("Recompile for SX127x");
+	  #endif
 	  }
     EnableReceiver(false);
     ClearFifo();

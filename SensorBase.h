@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 #define RESTORE_ANALYZE
+typedef unsigned long ulong;
 
 class SensorBase {
 public:
