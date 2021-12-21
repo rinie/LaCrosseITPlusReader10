@@ -481,23 +481,13 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
 #endif
   m_payloadReady = false;
 
-return; // constructor before setup????????????????
-
-#ifndef USE_SPI_H
-  pinMode(m_mosi, OUTPUT);
-  pinMode(m_miso, INPUT);
-  pinMode(m_sck, OUTPUT);
-  pinMode(m_ss, OUTPUT);
-
-  digitalWrite(m_ss, HIGH);
-#else
-#ifndef USE_SX127x
-	  pinMode(m_irqPin, INPUT);
-#endif
+#ifdef USE_SX127x
+	  //SPI.begin();
+#if 0
 	  pinMode(m_ss, OUTPUT);
 	  delay(10);
 	  digitalWrite(m_ss, HIGH);
-#ifdef USE_SX127x
+#endif
 	  if (m_reset != -1) {
 		pinMode(m_reset, OUTPUT);
 
@@ -507,8 +497,6 @@ return; // constructor before setup????????????????
 		digitalWrite(m_reset, HIGH);
 		delay(10);
 	  }
-	  SPI.begin();
-#endif
 #endif
 }
 

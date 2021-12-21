@@ -52,7 +52,7 @@ ulong DATA_RATE_R1   = 17241ul;  // <n>r     use one of the possible data rates 
 ulong DATA_RATE_R2   = 9579ul;   // <n>R     use one of the possible data rates (for RFM #2)
 #endif
                                          // <id,..>s send the bytes to the address id
-uint16_t TOGGLE_INTERVAL_R1  = 10;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
+uint16_t TOGGLE_INTERVAL_R1  = 0;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
 #ifdef USE_RFM2
 uint16_t TOGGLE_INTERVAL_R2  = 0;        // <n>T     0=no toggle, else interval in seconds (for RFM #2)
 #endif
@@ -611,6 +611,9 @@ void setup(void) {
   LaCrosse::USE_OLD_ID_CALCULATION = USE_OLD_IDS;
 
   Wire.begin();
+#ifdef USE_SPI_H
+  SPI.begin();
+#endif
 
   internalSensors.TryInitializeBMP180();
   internalSensors.SetAltitudeAboveSeaLevel(ALTITUDE_ABOVE_SEA_LEVEL);
