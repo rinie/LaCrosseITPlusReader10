@@ -89,9 +89,13 @@ static const uint8_t LORA_MISO = 19;
 static const uint8_t LORA_CS = 18;
 static const uint8_t LORA_RST = 14;
 static const uint8_t LORA_IRQ = 26;
-#endif
 RFM rfm1(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
 RFM rfm2(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
+#endif
+RFM rfm1(SS, DIO0, RST_LoRa); // need RST?
+#ifdef USE_RFM2
+RFM rfm2(SS, DIO0, RST_LoRa); // need RST?
+#endif
 #endif
 
 JeeLink jeeLink;

@@ -6,12 +6,11 @@
 #ifdef ESP32
 #define USE_SX127x
 #define IsSX127x (m_radioType == SX127x)
-#else
+#endif
 #include <spi.h>
 #define USE_SPI_H
 #define USE_SPI8_H
 #define USE_SPI16_H
-#endif
 #define IsRF69 (m_radioType == RFM69CW)
 #define IsSX127x (0)
 #define PAYLOADSIZE 64
