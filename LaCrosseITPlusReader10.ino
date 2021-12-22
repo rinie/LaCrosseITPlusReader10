@@ -92,7 +92,8 @@ static const uint8_t LORA_IRQ = 26;
 RFM rfm1(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
 RFM rfm2(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
 #endif
-RFM rfm1(SS, DIO0, RST_LoRa); // need RST?
+//RFM rfm1(SS, DIO0, RST_LoRa); // need RST?
+RFM rfm1(18,26,14);
 #ifdef USE_RFM2
 RFM rfm2(SS, DIO0, RST_LoRa); // need RST?
 #endif
@@ -612,7 +613,7 @@ void setup(void) {
 
   Wire.begin();
 #ifdef USE_SPI_H
-  SPI.begin();
+//  SPI.begin();
 #endif
 
   internalSensors.TryInitializeBMP180();

@@ -474,7 +474,7 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
 
   m_debug = false;
   m_dataRate = 17241;
-  m_frequency = 868300;
+  m_frequency = 868350;
 #ifndef USE_SPI_H
   m_payloadPointer = 0;
   m_lastReceiveTime = 0;
@@ -483,11 +483,10 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
 
 #ifdef USE_SX127x
 	  //SPI.begin();
-#if 0
+	  pinMode(m_irqPin, INPUT);
 	  pinMode(m_ss, OUTPUT);
 	  delay(10);
 	  digitalWrite(m_ss, HIGH);
-#endif
 	  if (m_reset != -1) {
 		pinMode(m_reset, OUTPUT);
 
@@ -497,6 +496,7 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
 		digitalWrite(m_reset, HIGH);
 		delay(10);
 	  }
+	  SPI.begin();
 #endif
 }
 
