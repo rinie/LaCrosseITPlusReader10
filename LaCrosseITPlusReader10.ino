@@ -41,7 +41,11 @@
 #define ENABLE_ACTIVITY_LED    1         // <n>a     set to 0 if the blue LED bothers
 ulong DATA_RATE_S1   = 17241ul;  // <n>c     use one of the possible data rates (for transmit on RFM #1)
 bool DEBUG                   = 0;        // <n>d     set to 1 to see debug messages
+#ifndef USE_SX127x
 ulong INITIAL_FREQ   = 868350;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515)
+#else
+ulong INITIAL_FREQ   = 868300;   // <n>f     initial frequency in kHz (5 kHz steps, 860480 ... 879515)
+#endif
 int ALTITUDE_ABOVE_SEA_LEVEL = 0;        // <n>h     altituide above sea level
 byte TOGGLE_MODE_R1          = 3;        // <n>m     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #1)
 byte TOGGLE_MODE_R2          = 3;        // <n>M     bits 1: 17.241 kbps, 2 : 9.579 kbps, 4 : 8.842 kbps (for RFM #2)
@@ -92,8 +96,8 @@ static const uint8_t LORA_IRQ = 26;
 RFM rfm1(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
 RFM rfm2(LORA_CS, LORA_IRQ, LORA_RST); // need RST?
 #endif
-//RFM rfm1(SS, DIO0, RST_LoRa); // need RST?
-RFM rfm1(18,26,14);
+RFM rfm1(SS, DIO0, RST_LoRa); // need RST?
+//RFM rfm1(18,26,14);
 #ifdef USE_RFM2
 RFM rfm2(SS, DIO0, RST_LoRa); // need RST?
 #endif
@@ -613,7 +617,7 @@ void setup(void) {
 
   Wire.begin();
 #ifdef USE_SPI_H
-//  SPI.begin();
+  SPI.begin();
 #endif
 
   internalSensors.TryInitializeBMP180();
