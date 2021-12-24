@@ -56,7 +56,7 @@ ulong DATA_RATE_R1   = 17241ul;  // <n>r     use one of the possible data rates 
 ulong DATA_RATE_R2   = 9579ul;   // <n>R     use one of the possible data rates (for RFM #2)
 #endif
                                          // <id,..>s send the bytes to the address id
-uint16_t TOGGLE_INTERVAL_R1  = 10;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
+uint16_t TOGGLE_INTERVAL_R1  = 0;        // <n>t     0=no toggle, else interval in seconds (for RFM #1)
 #ifdef USE_RFM2
 uint16_t TOGGLE_INTERVAL_R2  = 0;        // <n>T     0=no toggle, else interval in seconds (for RFM #2)
 #endif
@@ -448,6 +448,10 @@ void HandleReceivedData(RFM *rfm) {
    else if (WH24::IsValidDataRate(rfm->GetDataRate()) && WH24::TryHandleData(payload)) {
       frameLength = WH24::FRAME_LENGTH;
     }
+    // Try WH25
+    else if (WH25::IsValidDataRate(rfm->GetDataRate()) && WH25::TryHandleData(payload)) {
+      frameLength = WH25::FRAME_LENGTH;
+    }
 #else
     // Try LaCrosse like TX29DTH
     if (0 != (frameLength = LaCrosse::TryHandleData(payload, rfmDatarate, displayFormat))) {
@@ -466,11 +470,12 @@ void HandleReceivedData(RFM *rfm) {
       //frameLength = WH24::FRAME_LENGTH;
       ;
     }
-#endif
     // Try WH25
-    else if (WH25::IsValidDataRate(rfm->GetDataRate()) && WH25::TryHandleData(payload)) {
-      frameLength = WH25::FRAME_LENGTH;
+   else if (0 != (frameLength = WH25::TryHandleData(payload, rfmDatarate, displayFormat))) {
+      //frameLength = WH25::FRAME_LENGTH;
+      ;
     }
+#endif
 
      // Try W136
     else if (W136::IsValidDataRate(rfm->GetDataRate()) && W136::TryHandleData(payload)) {

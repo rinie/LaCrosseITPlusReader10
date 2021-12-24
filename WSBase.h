@@ -9,10 +9,10 @@ public:
   struct Frame {
     byte  Header;
     byte  ID;
+    byte  CRC;
     bool  NewBatteryFlag;
     bool  LowBatteryFlag;
     bool  ErrorFlag;
-    byte  CRC;
     bool  IsValid;
 
     bool  HasTemperature;
@@ -26,14 +26,14 @@ public:
     bool  HasstrikesTotal;
     bool  HasstrikesDistance;
 
-    float Temperature;    // �C
+    double Temperature;    // �C
+    double Rain;           // mm
+    double WindDirection;  // Degree
+    double  WindSpeed;     // m/s
+    double  WindGust;      // m/s
+    double  Pressure;        // hPa
     byte  Humidity;       // %rH
-    float Rain;           // mm
-    float WindDirection;  // Degree
-    float  WindSpeed;     // m/s
-    float  WindGust;      // m/s
-    int  Pressure;        // hPa
-    float UV;
+    double UV;
     int16_t strikesDistance ;
     uint16_t strikesTotal ;
   };

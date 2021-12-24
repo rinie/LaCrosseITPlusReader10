@@ -240,11 +240,11 @@ String LaCrosse::AnalyzeFrame(byte *data, Frame *frame) {
 
       // Weak battery flag
       result += " WeakBatt:";
-      result += String(frame->WeakBatteryFlag, DEC);
+      result += String(frame->WeakBatteryFlag, HEX);
 
       // CRC
       result += " CRC:";
-      result += String(frame->CRC, DEC);
+      result += String(frame->CRC, HEX);
     }
 
   }

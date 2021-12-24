@@ -108,16 +108,17 @@ void WH24::DecodeFrame(byte *bytes, struct Frame *frame, bool fOnlyIfValid) {
   if (frame->IsValid) {
 
     frame->ID = (bytes[1]);
+    frame->CRC = bytes[15];
     // Temperature (�C)
     int temp = ((bytes[3] & 0x07) << 8) | bytes[4]; // 0x7ff if invalid
-    frame->Temperature = ((temp * 0.1) - 40.0);     // range -40.0-60.0 C
+    frame->Temperature = (temp - 400) * 0.1f;     // range -40.0-60.0 C
     // Humidity (%rH)
     frame->Humidity = bytes[5];                     // 0xff if invalid
    // frame->Pressure = ((bytes[4] << 8) | bytes[5]) / 10.0;
 
     // Wind speed (m/s)
     int wind_speed_raw  = bytes[6] | (bytes[3] & 0x10) << 4; // 0x1ff if invalid
-     float wind_speed_factor, rain_cup_count;
+     double wind_speed_factor, rain_cup_count;
     // Wind speed factor is 1.12 m/s (1.19 per specs?) for WH24, 0.51 m/s for WH65B
     // Rain cup each count is 0.3mm for WH24, 0.01inch (0.254mm) for WH65B
     //if (model == MODEL_WH24) { // WH24
@@ -144,7 +145,7 @@ void WH24::DecodeFrame(byte *bytes, struct Frame *frame, bool fOnlyIfValid) {
 
     int uv_raw          = bytes[10] << 8 | bytes[11];               // range 0-20000, 0xffff if invalid
     int light_raw       = bytes[12] << 16 | bytes[13] << 8 | bytes[14]; // 0xffffff if invalid
-    float light_lux     = light_raw * 0.1; // range 0.0-300000.0lux
+    double light_lux     = light_raw * 0.1; // range 0.0-300000.0lux
     // Light = value/10 ; Watts/m Sqr. = Light/683 ;  Lux to W/m2 = Lux/126
 
     // UV value   UVI

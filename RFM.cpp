@@ -45,9 +45,6 @@ void RFM::Receive() {
 
 void RFM::GetPayload(byte *data) {
   m_payloadReady = false;
-#ifndef USE_SPI_H
-  m_payloadPointer = 0;
-#endif
   for (int i = 0; i < PAYLOADSIZE; i++) {
     data[i] = m_payload[i];
   }
@@ -167,8 +164,13 @@ void RFM::InitializeLaCrosse() {
 #ifdef __SX1276_REGS_FSK_H__
     /* 0x01 */ WriteReg(REG_OPMODE, RF_OPMODE_LONGRANGEMODE_OFF | RF_OPMODE_MODULATIONTYPE_FSK | RF_OPMODE_MODULATIONSHAPING_00 | RF_OPMODE_STANDBY);
     ///* 0x02 */ WriteReg(REG_DATAMODUL, RF_DATAMODUL_DATAMODE_PACKET | RF_DATAMODUL_MODULATIONTYPE_FSK | RF_DATAMODUL_MODULATIONSHAPING_00);
+#if 0
     /* 0x04 */ WriteReg(REG_FDEVMSB, RF_FDEVMSB_90000_HZ);
     /* 0x05 */ WriteReg(REG_FDEVLSB, RF_FDEVLSB_90000_HZ);
+#else
+    /* 0x04 */ WriteReg(REG_FDEVMSB, RF_FDEVMSB_60000_HZ);
+    /* 0x05 */ WriteReg(REG_FDEVLSB, RF_FDEVLSB_60000_HZ);
+#endif
     ///* 0x09 */ WriteReg(REG_PACONFIG, RF_PACONFIG_PASELECT_RFO | RF_PACONFIG_OUTPUTPOWER_MASK);
     /* 0x13 */ WriteReg(REG_OCP, RF_OCP_OFF);
     /* 0x12 */ WriteReg(REG_RXBW, RF_RXBW_MANT_16 | RF_RXBW_EXP_2);
@@ -191,8 +193,13 @@ void RFM::InitializeLaCrosse() {
 #ifdef _RFM69_h
     /* 0x01 */ WriteReg(REG_OPMODE, RF_OPMODE_SEQUENCER_ON | RF_OPMODE_LISTEN_OFF | RF_OPMODE_STANDBY);
     /* 0x02 */ WriteReg(REG_DATAMODUL, RF_DATAMODUL_DATAMODE_PACKET | RF_DATAMODUL_MODULATIONTYPE_FSK | RF_DATAMODUL_MODULATIONSHAPING_00);
+#if 0
     /* 0x05 */ WriteReg(REG_FDEVMSB, RF_FDEVMSB_90000);
     /* 0x06 */ WriteReg(REG_FDEVLSB, RF_FDEVLSB_90000);
+#else
+    /* 0x05 */ WriteReg(REG_FDEVMSB, RF_FDEVMSB_60000);
+    /* 0x06 */ WriteReg(REG_FDEVLSB, RF_FDEVLSB_60000);
+#endif
     /* 0x11 */ WriteReg(REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | RF_PALEVEL_OUTPUTPOWER_11111);
     /* 0x13 */ WriteReg(REG_OCP, RF_OCP_OFF);
     /* 0x19 */ WriteReg(REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_16 | RF_RXBW_EXP_2);
@@ -231,7 +238,6 @@ void RFM::InitializeLaCrosse() {
   ClearFifo();
 }
 
-#if 1
 byte RFM::spi8(byte value) {
   byte res;
   SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
@@ -270,118 +276,6 @@ void RFM::WriteReg(byte addr, byte value) {
   digitalWrite(m_ss, HIGH);
   SPI.endTransaction();
 }
-#else
-#ifndef USE_SPI8_H
-#define clrb(pin) (*portOutputRegister(digitalPinToPort(pin)) &= ~digitalPinToBitMask(pin))
-#define setb(pin) (*portOutputRegister(digitalPinToPort(pin)) |= digitalPinToBitMask(pin))
-
-byte RFM::spi8(byte value) {
-  volatile byte *misoPort = portInputRegister(digitalPinToPort(m_miso));
-  byte misoBit = digitalPinToBitMask(m_miso);
-  for (byte i = 8; i; i--) {
-    clrb(m_sck);
-    if (value & 0x80) {
-      setb(m_mosi);
-    }
-    else {
-      clrb(m_mosi);
-    }
-    value <<= 1;
-    setb(m_sck);
-    if (*misoPort & misoBit) {
-      value |= 1;
-    }
-  }
-  clrb(m_sck);
-
-  return value;
-}
-#else
-byte RFM::spi8(byte value) {
-  byte res;
-  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
-  digitalWrite(m_ss, LOW);
-  res = SPI.transfer(value);
-  digitalWrite(m_ss, HIGH);
-  SPI.endTransaction();
-  return res;
-}
-#endif
-
-#ifndef USE_SPI16_H
-unsigned short RFM::spi16(unsigned short value) {
-  volatile byte *misoPort = portInputRegister(digitalPinToPort(m_miso));
-  byte misoBit = digitalPinToBitMask(m_miso);
-
-  clrb(m_ss);
-  for (byte i = 0; i < 16; i++) {
-    if (value & 32768) {
-      setb(m_mosi);
-    }
-    else {
-      clrb(m_mosi);
-    }
-    value <<= 1;
-    if (*misoPort & misoBit) {
-      value |= 1;
-    }
-    setb(m_sck);
-    asm("nop");
-    asm("nop");
-    clrb(m_sck);
-  }
-  setb(m_ss);
-  return value;
-}
-#else
-unsigned short RFM::spi16(unsigned short value) {
-  unsigned short res;
-  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
-  digitalWrite(m_ss, LOW);
-  res = SPI.transfer16(value);
-  digitalWrite(m_ss, HIGH);
-  SPI.endTransaction();
-  return res;
-}
-#endif
-
-#ifndef USE_SPI8_H
-byte RFM::ReadReg(byte addr) {
-  digitalWrite(m_ss, LOW);
-  spi8(addr & 0x7F);
-  byte regval = spi8(0);
-  digitalWrite(m_ss, HIGH);
-  return regval;
-}
-#else
-byte RFM::ReadReg(byte addr) {
-  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
-  digitalWrite(m_ss, LOW);
-  SPI.transfer(addr & 0x7F);
-  uint8_t regval = SPI.transfer(0);
-  digitalWrite(m_ss, HIGH);
-  SPI.endTransaction();
-  return regval;
-}
-#endif
-
-void RFM::WriteReg(byte addr, byte value) {
-#ifndef USE_SPI8_H
-  digitalWrite(m_ss, LOW);
-  spi8(addr | 0x80);
-  spi8(value);
-
-  digitalWrite(m_ss, HIGH);
-#else
-  SPI.beginTransaction(SPISettings(SPI_CLOCK_DIV4, MSBFIRST, SPI_MODE0));
-  digitalWrite(m_ss, LOW);
-  SPI.transfer(addr | 0x80);
-  SPI.transfer(value);
-  digitalWrite(m_ss, HIGH);
-  SPI.endTransaction();
-#endif
-}
-#endif
 
 RFM::RadioType RFM::GetRadioType() {
   return m_radioType;
@@ -460,16 +354,9 @@ void RFM::Begin(bool isPrimary) {
   }
 }
 
-#ifndef USE_SPI_H
-RFM::RFM(byte mosi, byte miso, byte sck, byte ss) {
-  m_mosi = mosi;
-  m_miso = miso;
-  m_sck = sck;
-#else
 RFM::RFM(byte ss, byte irqPin, byte reset) {
   m_irqPin = irqPin;
   m_reset = reset;
-#endif
   m_ss = ss;
 
   m_debug = false;
@@ -478,10 +365,6 @@ RFM::RFM(byte ss, byte irqPin, byte reset) {
   m_frequency = 868350;
 #else
   m_frequency = 868300;
-#endif
-#ifndef USE_SPI_H
-  m_payloadPointer = 0;
-  m_lastReceiveTime = 0;
 #endif
   m_payloadReady = false;
 
